@@ -1,7 +1,7 @@
-import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, TOKEN_KEY, USER_KEY } from '@/api/client';
 import type { User } from '@/api/types';
+import { storage } from '@/lib/storage';
 
 interface AuthContextValue {
   user: User | null;
@@ -17,21 +17,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    SecureStore.getItemAsync(USER_KEY)
+    storage
+      .get(USER_KEY)
       .then((stored) => stored && setUser(JSON.parse(stored)))
       .finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
-    await SecureStore.setItemAsync(TOKEN_KEY, data.token);
-    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
+    await storage.set(TOKEN_KEY, data.token);
+    await storage.set(USER_KEY, JSON.stringify(data.user));
     setUser(data.user);
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
+    await storage.remove(TOKEN_KEY);
+    await storage.remove(USER_KEY);
     setUser(null);
   };
 
