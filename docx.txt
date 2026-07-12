@@ -1,0 +1,509 @@
+# Security Agency Management System
+
+## Project Overview & Application Flow
+
+**Platform:** Expo (React Native)
+**Backend:** Node.js + Express (Recommended)
+**Database:** PostgreSQL
+**Target Users:** Security Agency Admin and Office Staff
+
+---
+
+# 1. Introduction
+
+The Security Agency Management System is a mobile application developed using **Expo React Native** to help security agencies manage their workforce efficiently.
+
+The application is **not intended for Security Guards, Gunmen, Supervisors, or Housekeeping staff**. It is designed exclusively for the agency's **Admin and Office Staff**, who manage employees, locations, attendance, and salary payments.
+
+The primary objective is to eliminate paper records and provide a centralized platform for managing security personnel.
+
+---
+
+# 2. User Roles
+
+Only authorized office personnel can access the application.
+
+### Admin
+
+The Admin has complete access to every module.
+
+Responsibilities:
+
+* Login
+* Add/Edit/Delete Employees
+* Add/Edit Locations
+* Create Designations
+* Assign Employees to Sites
+* Mark Attendance
+* Manage Salary Payments
+* Upload Payment Proof
+* Upload Employee Documents
+* Issue Uniforms
+* View Reports
+
+---
+
+### Office Staff
+
+Office Staff can perform operations assigned by the Admin.
+
+Example permissions:
+
+* Add Employees
+* Mark Attendance
+* Upload Payment Screenshots
+* Manage Documents
+
+Permissions can later be customized if required.
+
+---
+
+# 3. Application Modules
+
+---
+
+## Authentication
+
+Purpose:
+
+Secure login for Admin and Office Staff.
+
+Features:
+
+* Login
+* Logout
+* Forgot Password (Future)
+* Change Password
+
+---
+
+## Dashboard
+
+After login, users land on the dashboard.
+
+Dashboard Cards:
+
+* Total Employees
+* Active Employees
+* Today's Attendance
+* Locations
+* Pending Payments
+* Uniform Pending
+* Recent Activities
+
+---
+
+## Employee Management
+
+Purpose:
+
+Maintain employee records.
+
+Features:
+
+* Add Employee
+* Edit Employee
+* View Employee
+* Disable Employee
+* Search Employee
+
+Employee Details:
+
+* Employee Code
+* Name
+* Phone
+* Alternate Phone
+* Email
+* Aadhaar Number
+* Address
+* Date of Birth
+* Joining Date
+* Designation
+* Salary
+* Photograph
+* Status
+
+---
+
+## Designation Management
+
+Purpose:
+
+Create and manage employee designations.
+
+Example:
+
+* Security Guard
+* Gunman
+* Supervisor
+* Housekeeping
+
+Each designation contains:
+
+* Name
+* Description
+* Default Salary
+* Uniform Required
+* Active/Inactive
+
+This allows the Admin to create new designations whenever required.
+
+---
+
+## Location Management
+
+Purpose:
+
+Manage client sites where employees are deployed.
+
+Each location contains:
+
+* Site Name
+* Client Name
+* Address
+* City
+* State
+* Contact Person
+* Contact Number
+* Status
+
+Example:
+
+```
+DLF Mall
+Noida Hospital
+ABC Factory
+Metro Station
+```
+
+---
+
+## Employee Assignment
+
+Purpose:
+
+Assign employees to work locations.
+
+Workflow:
+
+```
+Employee
+      ↓
+Choose Location
+      ↓
+Choose Shift
+      ↓
+Save Assignment
+```
+
+An employee can later be reassigned to another location while preserving assignment history.
+
+---
+
+## Attendance Module
+
+Purpose:
+
+Record daily attendance.
+
+Attendance includes:
+
+* Employee
+* Date
+* Check-In Time
+* Check-Out Time
+* Status
+
+Status Values:
+
+* Present
+* Absent
+* Half Day
+* Leave
+
+Attendance is marked by the Admin or Office Staff.
+
+---
+
+## Payment Module
+
+Purpose:
+
+Maintain employee salary records.
+
+Information stored:
+
+* Employee
+* Month
+* Year
+* Amount
+* Payment Date
+* Payment Mode
+* Transaction Reference
+* Payment Screenshot
+* Remarks
+
+Supported Payment Modes:
+
+* Cash
+* Bank Transfer
+* UPI
+
+The payment screenshot acts as proof for future verification.
+
+---
+
+## Employee Documents
+
+Purpose:
+
+Store employee documents digitally.
+
+Supported documents:
+
+* Aadhaar Card
+* PAN Card
+* Police Verification
+* Gun License
+* Passport Photo
+* Other Certificates
+
+Documents are uploaded and linked to the employee profile.
+
+---
+
+## Uniform Management
+
+Purpose:
+
+Track uniform issuance.
+
+Features:
+
+* Issue Uniform
+* Record Issue Date
+* Record Issued By
+* Uniform Size
+* Return Status
+* Return Date
+* Remarks
+
+This ensures the agency knows exactly which employee has received a uniform.
+
+---
+
+# 4. Application Flow
+
+```
+                Login
+                  │
+                  ▼
+             Dashboard
+                  │
+     ┌────────────┼────────────┐
+     │            │            │
+Employees     Locations    Attendance
+     │            │            │
+     ▼            ▼            ▼
+Assignments   Manage Sites  Mark Attendance
+     │
+     ▼
+Payments
+     │
+     ▼
+Documents
+     │
+     ▼
+Uniform Issue
+```
+
+---
+
+# 5. Employee Lifecycle
+
+```
+Create Designation
+        │
+        ▼
+Add Employee
+        │
+        ▼
+Upload Documents
+        │
+        ▼
+Issue Uniform
+        │
+        ▼
+Assign Location
+        │
+        ▼
+Daily Attendance
+        │
+        ▼
+Monthly Salary Payment
+        │
+        ▼
+Employee Continues Working
+```
+
+---
+
+# 6. Database Flow
+
+```
+Designations
+      │
+      │
+      ▼
+Employees
+      │
+      ├──────────────┐
+      │              │
+      ▼              ▼
+Assignments     Documents
+      │
+      ▼
+Locations
+      │
+      ▼
+Attendance
+      │
+      ▼
+Payments
+
+App Users
+     │
+     ├── Marks Attendance
+     ├── Issues Uniform
+     └── Creates Payments
+```
+
+---
+
+# 7. Suggested Mobile Screens
+
+## Authentication
+
+* Splash Screen
+* Login Screen
+
+---
+
+## Dashboard
+
+* Dashboard
+* Profile
+* Settings
+
+---
+
+## Employee
+
+* Employee List
+* Employee Details
+* Add Employee
+* Edit Employee
+
+---
+
+## Designation
+
+* Designation List
+* Add Designation
+
+---
+
+## Locations
+
+* Location List
+* Add Location
+
+---
+
+## Assignments
+
+* Assignment List
+* Assign Employee
+
+---
+
+## Attendance
+
+* Attendance List
+* Mark Attendance
+* Attendance History
+
+---
+
+## Payments
+
+* Payment List
+* Add Payment
+* Payment Details
+
+---
+
+## Documents
+
+* Upload Document
+* Document Viewer
+
+---
+
+## Uniform
+
+* Uniform History
+* Issue Uniform
+
+---
+
+# 8. Technology Stack
+
+### Mobile
+
+* Expo SDK
+* React Native
+* TypeScript
+* Expo Router
+* NativeWind (Tailwind CSS)
+* React Hook Form
+* Zod
+* TanStack Query
+* Axios
+
+### Backend
+
+* Node.js
+* Express.js
+* JWT Authentication
+* Multer (File Upload)
+* PostgreSQL
+
+### Storage
+
+* Local Storage / AsyncStorage (Session)
+* Cloud Storage (AWS S3, Cloudinary, or Supabase Storage) for photos, documents, and payment proofs
+
+---
+
+# 9. Future Enhancements
+
+The application is designed to grow over time. Potential future modules include:
+
+* Leave Management
+* Shift Scheduling
+* Client Management
+* Payroll Generation
+* Expense Tracking
+* Equipment Management (ID Cards, Walkie-Talkies, Batons, Weapons)
+* GPS-Based Attendance
+* Employee Notifications
+* Analytics & Reports
+* Biometric Attendance Integration
+* QR Code-Based Employee Verification
+
+---
+
+# 10. Project Summary
+
+The **Security Agency Management System** is a centralized mobile application that enables security agencies to manage employees, work locations, attendance, salary payments, documents, and uniform issuance from a single platform. Built with **Expo React Native**, it provides a clean and mobile-first experience for Admins and Office Staff, reducing manual paperwork and improving operational efficiency while remaining scalable for future enhancements.
