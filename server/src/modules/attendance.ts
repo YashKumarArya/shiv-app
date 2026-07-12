@@ -50,6 +50,22 @@ router.get('/roster', asyncHandler(async (req, res) => {
   res.json(rows);
 }));
 
+/** Mark every active employee without a record that day as Present. */
+router.post('/mark-all-present', asyncHandler(async (req, res) => {
+  const date = req.body?.date as string | undefined;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'date must be YYYY-MM-DD');
+
+  const rows = await query(
+    `INSERT INTO attendance (employee_id, attendance_date, status, marked_by)
+     SELECT e.id, $1, 'Present', $2 FROM employees e
+     WHERE e.status = 'Active'
+       AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id = e.id AND a.attendance_date = $1)
+     RETURNING id`,
+    [date, req.user!.id],
+  );
+  res.status(201).json({ marked: rows.length });
+}));
+
 router.use(crudRouter({
   table: 'attendance',
   createSchema: schema,
