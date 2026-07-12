@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS designations (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Backs auto-generated employee codes (EMP0001, EMP0002, …)
+CREATE SEQUENCE IF NOT EXISTS employee_code_seq;
+
 CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
     employee_code VARCHAR(30) UNIQUE NOT NULL,

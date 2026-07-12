@@ -11,7 +11,6 @@ import { dateString, optionalDate, optionalMoney, optionalText, requiredId } fro
 
 const schema = z.object({
   photo: optionalText,
-  employee_code: z.string().min(1, 'Required'),
   first_name: z.string().min(1, 'Required'),
   last_name: optionalText,
   designation_id: requiredId,
@@ -26,7 +25,7 @@ const schema = z.object({
 });
 
 const defaults = {
-  photo: '', employee_code: '', first_name: '', last_name: '', designation_id: '',
+  photo: '', first_name: '', last_name: '', designation_id: '',
   phone: '', alternate_phone: '', email: '', aadhaar_number: '',
   date_of_birth: '', joining_date: today(), salary: '', address: '',
 };
@@ -37,7 +36,6 @@ export default function EmployeeForm() {
   return (
     <Screen scroll>
       <PhotoPicker control={control} name="photo" label="Photograph" />
-      <FormField control={control} name="employee_code" label="Employee Code" />
       <FormField control={control} name="first_name" label="First Name" />
       <FormField control={control} name="last_name" label="Last Name" />
       <ResourceSelect<Designation>
