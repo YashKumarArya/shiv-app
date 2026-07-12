@@ -22,7 +22,9 @@
         {
           "photosPermission": "Allow access to photos to upload employee photos, documents and payment proofs."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ]
   }
 }
