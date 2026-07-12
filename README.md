@@ -99,6 +99,7 @@ A physical device can't reach `localhost` — use your machine's LAN IP in `.env
 | `/designations` `/locations` | full CRUD | `?search=` |
 | `/assignments` | full CRUD | creating one auto-ends the employee's active assignment |
 | `/attendance` | full CRUD | `?attendance_date=`, `?employee_id=`; unique per employee/day |
+| `/attendance/roster` | GET | `?date=` — active employees with assignment, day's status, month's present days |
 | `/payments` | full CRUD | `?employee_id=`, `?payment_month/year=`; unique per employee/month |
 | `/documents` `/uniforms` | full CRUD | `?employee_id=` |
 | `/users` | full CRUD | admin-only; manage office staff logins |
