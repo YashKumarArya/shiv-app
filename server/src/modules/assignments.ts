@@ -6,9 +6,9 @@ import { dateString, id } from '../lib/fields.js';
 const schema = z.object({
   employee_id: id,
   location_id: id,
-  shift: z.string().optional(),
+  shift: z.string().nullable().optional(),
   start_date: dateString,
-  end_date: dateString.optional(),
+  end_date: dateString.nullable().optional(),
   status: z.enum(['Active', 'Ended']).optional(),
 });
 

@@ -11,7 +11,9 @@ const screens: [name: string, title: string][] = [
   ['assignments/index', 'Assignments'],
   ['assignments/form', 'Assign Employee'],
   ['attendance/mark', 'Attendance'],
-  ['payments/index', 'Payments'],
+  ['attendance/[employeeId]', 'Work Calendar'],
+  ['payments/index', 'Salary Tracking'],
+  ['payments/history', 'Payment History'],
   ['payments/form', 'Record Payment'],
   ['documents/index', 'Documents'],
   ['documents/form', 'Document'],
@@ -26,7 +28,17 @@ export default function AppLayout() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <Stack screenOptions={{ headerTintColor: '#2563eb', headerTitleStyle: { color: '#1e293b' } }}>
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: '#f6f0ff' },
+        headerStyle: { backgroundColor: '#fff8ed' },
+        headerShadowVisible: false,
+        headerTintColor: '#2457d6',
+        headerBackButtonDisplayMode: 'generic',
+        headerBackTitle: 'Back',
+        headerTitleStyle: { color: '#102a43', fontSize: 17, fontWeight: '700' },
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {screens.map(([name, title]) => (
         <Stack.Screen key={name} name={name} options={{ title }} />

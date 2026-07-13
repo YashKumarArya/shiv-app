@@ -5,7 +5,7 @@ import { id } from '../lib/fields.js';
 const schema = z.object({
   employee_id: id,
   document_type: z.string().min(1),
-  document_number: z.string().optional(),
+  document_number: z.string().nullable().optional(),
   document_file: z.string().min(1),
 });
 

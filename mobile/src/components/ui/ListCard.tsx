@@ -1,31 +1,44 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Badge } from './Badge';
+import { depth } from './depth';
 
 interface Props {
   title: string;
   subtitle?: string;
   badge?: string;
+  leading?: ReactNode;
   right?: ReactNode;
   href?: string;
   onPress?: () => void;
+  accessibilityLabel?: string;
 }
 
-export const ListCard = ({ title, subtitle, badge, right, href, onPress }: Props) => {
+export const ListCard = ({
+  title, subtitle, badge, leading, right, href, onPress, accessibilityLabel,
+}: Props) => {
   const router = useRouter();
   const handlePress = onPress ?? (href ? () => router.push(href as Href) : undefined);
   return (
     <Pressable
       onPress={handlePress}
       disabled={!handlePress}
-      className="mb-3 flex-row items-center rounded-2xl bg-white p-4 shadow-sm active:opacity-80"
+      accessibilityRole={handlePress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel ?? [title, subtitle, badge].filter(Boolean).join(', ')}
+      style={depth.subtle}
+      className="mb-3 min-h-[76px] flex-row items-center rounded-2xl border border-slate-200 bg-white p-3.5 active:bg-slate-50"
     >
-      <View className="flex-1 pr-3">
-        <Text className="text-base font-semibold text-slate-800">{title}</Text>
-        {subtitle ? <Text className="mt-0.5 text-sm text-slate-500">{subtitle}</Text> : null}
+      {leading ? <View className="mr-3">{leading}</View> : null}
+      <View className="flex-1 pr-2">
+        <Text className="text-[15px] font-bold text-slate-800" numberOfLines={1}>{title}</Text>
+        {subtitle ? <Text className="mt-1 text-[13px] leading-[18px] text-slate-500" numberOfLines={2}>{subtitle}</Text> : null}
       </View>
       {right ?? (badge ? <Badge label={badge} /> : null)}
+      {handlePress ? (
+        <Ionicons name="chevron-forward" size={16} color="#b0bccb" style={{ marginLeft: 6 }} />
+      ) : null}
     </Pressable>
   );
 };

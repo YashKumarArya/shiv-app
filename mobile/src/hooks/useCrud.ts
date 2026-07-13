@@ -22,7 +22,21 @@ export const useSave = (resource: string) => {
   return useMutation({
     mutationFn: async ({ id, ...body }: { id?: string | number } & Record<string, unknown>) =>
       (id ? await api.put(`/${resource}/${id}`, body) : await api.post(`/${resource}`, body)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [resource] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [resource] });
+      if (resource === 'employees' || resource === 'designations') {
+        await queryClient.invalidateQueries({ queryKey: ['payments'] });
+        await queryClient.invalidateQueries({ queryKey: ['uniforms'] });
+      }
+      if (
+        resource === 'employees'
+        || resource === 'designations'
+        || resource === 'payments'
+        || resource === 'uniforms'
+      ) {
+        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      }
+    },
   });
 };
 
@@ -30,6 +44,20 @@ export const useRemove = (resource: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.delete(`/${resource}/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [resource] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [resource] });
+      if (resource === 'employees' || resource === 'designations') {
+        await queryClient.invalidateQueries({ queryKey: ['payments'] });
+        await queryClient.invalidateQueries({ queryKey: ['uniforms'] });
+      }
+      if (
+        resource === 'employees'
+        || resource === 'designations'
+        || resource === 'payments'
+        || resource === 'uniforms'
+      ) {
+        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      }
+    },
   });
 };

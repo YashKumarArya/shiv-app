@@ -1,7 +1,9 @@
+import { useLocalSearchParams } from 'expo-router';
 import { z } from 'zod';
 import type { Location } from '@/api/types';
-import { FormField } from '@/components/form/FormField';
+import { DateTimeField } from '@/components/form/DateTimeField';
 import { FormSelect, toOptions } from '@/components/form/FormSelect';
+import { FormSectionTitle } from '@/components/form/FormSectionTitle';
 import { EmployeeSelect, ResourceSelect } from '@/components/form/ResourceSelect';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -19,11 +21,21 @@ const schema = z.object({
 const defaults = { employee_id: '', location_id: '', shift: '', start_date: today() };
 
 export default function AssignmentForm() {
-  const { control, submit, saving, isEdit } = useResourceForm('assignments', schema, defaults);
+  const { employee_id } = useLocalSearchParams<{ employee_id?: string }>();
+  const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm(
+    'assignments', schema, { ...defaults, employee_id: employee_id ? Number(employee_id) : '' },
+  );
 
   return (
-    <Screen scroll>
-      <EmployeeSelect control={control} name="employee_id" />
+    <Screen
+      scroll
+      loading={formLoading}
+      error={formError}
+      onRetry={() => void retryForm()}
+      footer={<Button title={isEdit ? 'Update assignment' : 'Assign employee'} icon="checkmark" onPress={submit} loading={saving} />}
+    >
+      <FormSectionTitle title="Posting details" description="Choose who is being assigned, where and when they start." />
+      <EmployeeSelect control={control} name="employee_id" disabled={!!employee_id} />
       <ResourceSelect<Location>
         control={control}
         name="location_id"
@@ -33,8 +45,7 @@ export default function AssignmentForm() {
         getOption={(loc) => ({ label: loc.site_name, value: loc.id })}
       />
       <FormSelect control={control} name="shift" label="Shift" options={toOptions(['Day', 'Night', 'Rotational'])} />
-      <FormField control={control} name="start_date" label="Start Date" placeholder="YYYY-MM-DD" />
-      <Button title={isEdit ? 'Update Assignment' : 'Assign Employee'} onPress={submit} loading={saving} />
+      <DateTimeField control={control} name="start_date" label="Start date" />
     </Screen>
   );
 }

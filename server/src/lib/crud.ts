@@ -20,12 +20,13 @@ export interface CrudConfig {
   returning?: string;
   /** Transform/augment the validated body before INSERT (stamp user ids, hash passwords, …). */
   beforeCreate?: (body: Body, req: Request) => Body | Promise<Body>;
+  beforeUpdate?: (body: Body, req: Request, id: string) => Body | Promise<Body>;
 }
 
 export const crudRouter = (config: CrudConfig) => {
   const {
     table, createSchema, updateSchema, searchColumns = [], filterColumns = [],
-    orderBy = `${config.table}.id DESC`, listQuery, returning = '*', beforeCreate,
+    orderBy = `${config.table}.id DESC`, listQuery, returning = '*', beforeCreate, beforeUpdate,
   } = config;
   const select = listQuery ?? `SELECT * FROM ${table}`;
   const router = Router();
@@ -72,12 +73,13 @@ export const crudRouter = (config: CrudConfig) => {
   }));
 
   router.put('/:id', validate(updateSchema), asyncHandler(async (req, res) => {
-    const keys = Object.keys(req.body);
+    const body = beforeUpdate ? await beforeUpdate(req.body, req, req.params.id) : req.body;
+    const keys = Object.keys(body);
     if (!keys.length) throw new HttpError(400, 'No fields to update');
     const row = await queryOne(
       `UPDATE ${table} SET ${keys.map((key, i) => `${key} = $${i + 1}`).join(', ')}, updated_at = NOW()
        WHERE id = $${keys.length + 1} RETURNING ${returning}`,
-      [...keys.map((key) => req.body[key]), req.params.id],
+      [...keys.map((key) => body[key]), req.params.id],
     );
     if (!row) throw new HttpError(404, 'Record not found');
     res.json(row);

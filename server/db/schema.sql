@@ -3,7 +3,7 @@
 --   * app_users.role ('admin' | 'staff')
 --   * updated_at on every table (the generic CRUD layer sets it on update)
 --   * UNIQUE constraints: one attendance row per employee per day,
---     one salary payment per employee per month
+--     salary payments support multiple installments per employee per month
 -- Idempotent: safe to run repeatedly.
 
 CREATE TABLE IF NOT EXISTS app_users (
@@ -106,9 +106,13 @@ CREATE TABLE IF NOT EXISTS payments (
     remarks TEXT,
     created_by INT REFERENCES app_users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (employee_id, payment_month, payment_year)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Older installations used one row per employee/month. Salary tracking now keeps
+-- an installment ledger and totals the rows for the selected period.
+ALTER TABLE payments
+    DROP CONSTRAINT IF EXISTS payments_employee_id_payment_month_payment_year_key;
 
 CREATE TABLE IF NOT EXISTS employee_documents (
     id SERIAL PRIMARY KEY,
@@ -136,6 +140,8 @@ CREATE TABLE IF NOT EXISTS uniform_issues (
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON employee_assignments(employee_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
 CREATE INDEX IF NOT EXISTS idx_payments_employee ON payments(employee_id);
+CREATE INDEX IF NOT EXISTS idx_payments_employee_period
+    ON payments(employee_id, payment_year, payment_month);
 CREATE INDEX IF NOT EXISTS idx_documents_employee ON employee_documents(employee_id);
 
 INSERT INTO designations (designation_name, default_salary, uniform_required) VALUES

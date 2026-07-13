@@ -13,7 +13,10 @@ export default function Documents() {
       <ResourceList<EmployeeDocument>
         resource="documents"
         params={{ employee_id }}
-        addHref="/documents/form"
+        addHref={employee_id ? `/documents/form?employee_id=${employee_id}` : '/documents/form'}
+        addLabel="Add document"
+        emptyTitle="No documents yet"
+        emptyMessage="Upload an employee identity or employment document."
         renderItem={(d) => (
           <ListCard
             title={d.document_type}

@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useIsMutating } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useForm, type DefaultValues, type FieldValues } from 'react-hook-form';
-import { Alert } from 'react-native';
 import type { ZodSchema } from 'zod';
 import { errorMessage } from '@/api/client';
 import { useItem, useSave } from './useCrud';
+import { notify } from '@/lib/notify';
 
 /** Postgres returns dates as ISO timestamps and times as HH:MM:SS — trim for form inputs. */
 const normalize = (value: unknown) => {
@@ -26,12 +27,15 @@ export function useResourceForm(
 ) {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
-  const { data } = useItem<Record<string, unknown>>(resource, id);
+  const item = useItem<Record<string, unknown>>(resource, id);
+  const { data } = item;
   const save = useSave(resource);
   const form = useForm<FieldValues>({
     resolver: zodResolver(schema),
     defaultValues: defaults as DefaultValues<FieldValues>,
   });
+  const { dirtyFields } = form.formState;
+  const uploading = useIsMutating({ mutationKey: ['upload'] }) > 0;
 
   useEffect(() => {
     if (!data) return;
@@ -39,16 +43,34 @@ export function useResourceForm(
   }, [data]);
 
   const submit = form.handleSubmit(async (values) => {
-    const body = Object.fromEntries(
-      Object.entries(values).filter(([, value]) => value !== '' && value != null),
-    );
+    const rawValues = form.getValues();
+    const dirtyKeys = Object.keys(dirtyFields);
+    const body = id
+      ? Object.fromEntries(dirtyKeys.map((key) => {
+          const rawValue = rawValues[key];
+          return [key, rawValue === '' || rawValue == null ? null : values[key]];
+        }))
+      : Object.fromEntries(Object.entries(values).filter(([, value]) => value !== '' && value != null));
+
     try {
+      if (id && !Object.keys(body).length) {
+        router.back();
+        return;
+      }
       await save.mutateAsync({ id, ...body });
       router.back();
     } catch (error) {
-      Alert.alert('Save failed', errorMessage(error));
+      notify('Save failed', errorMessage(error));
     }
   });
 
-  return { ...form, submit, saving: save.isPending, isEdit: !!id };
+  return {
+    ...form,
+    submit,
+    saving: save.isPending || uploading,
+    isEdit: !!id,
+    formLoading: !!id && item.isLoading,
+    formError: id && item.isError ? errorMessage(item.error) : undefined,
+    retryForm: item.refetch,
+  };
 }

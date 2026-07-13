@@ -111,6 +111,7 @@ export interface DashboardStats {
   present_today: number;
   active_locations: number;
   pending_payments: number;
+  missing_salaries: number;
   uniform_pending: number;
 }
 

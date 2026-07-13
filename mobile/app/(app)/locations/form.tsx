@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FormField } from '@/components/form/FormField';
+import { FormSectionTitle } from '@/components/form/FormSectionTitle';
 import { FormSwitch } from '@/components/form/FormSwitch';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -23,19 +24,27 @@ const defaults = {
 };
 
 export default function LocationForm() {
-  const { control, submit, saving, isEdit } = useResourceForm('locations', schema, defaults);
+  const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm('locations', schema, defaults);
 
   return (
-    <Screen scroll>
+    <Screen
+      scroll
+      loading={formLoading}
+      error={formError}
+      onRetry={() => void retryForm()}
+      footer={<Button title={isEdit ? 'Update location' : 'Add location'} icon="checkmark" onPress={submit} loading={saving} />}
+    >
+      <FormSectionTitle title="Site details" description="Identify the client location employees will be assigned to." />
       <FormField control={control} name="site_name" label="Site Name" />
       <FormField control={control} name="client_name" label="Client Name" />
       <FormField control={control} name="address" label="Address" multiline />
       <FormField control={control} name="city" label="City" />
       <FormField control={control} name="state" label="State" />
+
+      <FormSectionTitle title="Site contact" />
       <FormField control={control} name="contact_person" label="Contact Person" />
       <FormField control={control} name="contact_number" label="Contact Number" keyboardType="phone-pad" />
       <FormSwitch control={control} name="status" label="Active" />
-      <Button title={isEdit ? 'Update Location' : 'Add Location'} onPress={submit} loading={saving} />
     </Screen>
   );
 }

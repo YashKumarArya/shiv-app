@@ -1,23 +1,35 @@
-import type { Control, FieldValues, Path } from 'react-hook-form';
+import type { FieldValues } from 'react-hook-form';
 import { employeeName, type Employee } from '@/api/types';
 import { useList, type ListParams } from '@/hooks/useCrud';
-import { FormSelect, type Option } from './FormSelect';
+import { FormSelect, type FormSelectProps, type Option } from './FormSelect';
 
-interface Props<TRow, TForm extends FieldValues> {
-  control: Control<TForm>;
-  name: Path<TForm>;
-  label: string;
+type Props<TRow, TForm extends FieldValues> = Omit<
+  FormSelectProps<TForm>,
+  'options' | 'loading' | 'loadError' | 'onRetry'
+> & {
   resource: string;
   params?: ListParams;
   getOption: (row: TRow) => Option;
-}
+};
 
 /** A FormSelect whose options come from an API resource. */
 export function ResourceSelect<TRow, TForm extends FieldValues = FieldValues>({
-  resource, params, getOption, ...selectProps
+  resource,
+  params,
+  getOption,
+  ...selectProps
 }: Props<TRow, TForm>) {
-  const { data } = useList<TRow>(resource, { limit: 200, ...params });
-  return <FormSelect<TForm> {...selectProps} options={(data ?? []).map(getOption)} />;
+  const { data, isLoading, isError, refetch } = useList<TRow>(resource, { limit: 200, ...params });
+
+  return (
+    <FormSelect<TForm>
+      {...selectProps}
+      options={(data ?? []).map(getOption)}
+      loading={isLoading}
+      loadError={isError ? 'Couldn’t load options. Check your connection and try again.' : undefined}
+      onRetry={() => void refetch()}
+    />
+  );
 }
 
 export const EmployeeSelect = (
@@ -27,7 +39,10 @@ export const EmployeeSelect = (
     label="Employee"
     resource="employees"
     params={{ status: 'Active' }}
-    getOption={(e) => ({ label: `${employeeName(e)} (${e.employee_code})`, value: e.id })}
+    getOption={(employee) => ({
+      label: `${employeeName(employee)} (${employee.employee_code})`,
+      value: employee.id,
+    })}
     {...props}
   />
 );

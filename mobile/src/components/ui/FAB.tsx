@@ -1,11 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, type Href } from 'expo-router';
-import { Pressable } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
+import { Pressable, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { depth } from './depth';
 
-export const FAB = ({ href }: { href: string }) => (
-  <Link href={href as Href} asChild>
-    <Pressable className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-lg active:opacity-80">
-      <Ionicons name="add" size={28} color="white" />
+export const FAB = ({
+  href,
+  label = 'Add',
+  withinTab = false,
+}: {
+  href: string;
+  label?: string;
+  withinTab?: boolean;
+}) => {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push(href as Href)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[
+        depth.floating,
+        {
+          position: 'absolute',
+          bottom: withinTab ? 16 : Math.max(insets.bottom, 12) + 12,
+          right: 16,
+          width: 164,
+          height: 56,
+          zIndex: 50,
+        },
+      ]}
+      className="flex-row items-center justify-center rounded-2xl bg-brand-600 px-4 active:opacity-80"
+    >
+      <Ionicons name="add" size={22} color="white" />
+      <Text numberOfLines={1} className="ml-2 font-bold text-white">{label}</Text>
     </Pressable>
-  </Link>
-);
+  );
+};

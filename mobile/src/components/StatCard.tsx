@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
+import { depth } from './ui/depth';
 
 const tones = {
   blue: ['bg-blue-100', '#2563eb'],
@@ -20,7 +21,7 @@ interface Props {
 export const StatCard = ({ label, value, icon, tone }: Props) => {
   const [bg, color] = tones[tone];
   return (
-    <View className="w-[48.5%] rounded-2xl bg-white p-4 shadow-sm">
+    <View style={depth.raised} className="w-[48.5%] rounded-2xl bg-white p-4">
       <View className={`h-9 w-9 items-center justify-center rounded-full ${bg}`}>
         <Ionicons name={icon} size={18} color={color} />
       </View>

@@ -10,6 +10,9 @@ export default function Locations() {
         resource="locations"
         searchable
         addHref="/locations/form"
+        addLabel="Add location"
+        emptyTitle="No locations yet"
+        emptyMessage="Add a client site before assigning employees."
         renderItem={(loc) => (
           <ListCard
             title={loc.site_name}

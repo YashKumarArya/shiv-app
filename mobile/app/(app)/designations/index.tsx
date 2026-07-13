@@ -10,6 +10,9 @@ export default function Designations() {
         resource="designations"
         searchable
         addHref="/designations/form"
+        addLabel="Add role"
+        emptyTitle="No designations yet"
+        emptyMessage="Add roles to organize employees and salary defaults."
         renderItem={(d) => (
           <ListCard
             title={d.designation_name}

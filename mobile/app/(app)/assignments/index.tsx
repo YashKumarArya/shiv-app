@@ -12,7 +12,10 @@ export default function Assignments() {
       <ResourceList<Assignment>
         resource="assignments"
         params={{ employee_id }}
-        addHref="/assignments/form"
+        addHref={employee_id ? `/assignments/form?employee_id=${employee_id}` : '/assignments/form'}
+        addLabel="New assignment"
+        emptyTitle="No assignments yet"
+        emptyMessage="Assign an employee to a client site and shift."
         renderItem={(a) => (
           <ListCard
             title={employeeName(a)}

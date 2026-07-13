@@ -34,7 +34,7 @@ db/
 **Schema changes vs the root `schema.sql`** (in `server/db/schema.sql`):
 - `app_users.role` (`admin` / `staff`) — the doc requires roles but the original schema had none
 - `updated_at` on every table
-- `UNIQUE (employee_id, attendance_date)` and `UNIQUE (employee_id, payment_month, payment_year)` — prevents double attendance/salary entries (API returns 409)
+- `UNIQUE (employee_id, attendance_date)` prevents duplicate daily attendance; salary payments support multiple installments per month
 - FK indexes; everything `IF NOT EXISTS` so setup is re-runnable
 
 ### Mobile (`mobile/`)
@@ -87,6 +87,27 @@ npx expo start                # scan the QR with Expo Go
 
 A physical device can't reach `localhost` — use your machine's LAN IP in `.env`.
 
+## Deploying the backend (Railway)
+
+The server needs no manual DB setup — it applies `db/schema.sql` and seeds the
+admin user at every boot (idempotent, see `src/config/bootstrap.ts`).
+
+1. [railway.com](https://railway.com) → New Project → **Deploy from GitHub repo** → pick this repo.
+2. On the service: Settings → **Root Directory** = `server`. Railway auto-runs `npm run build` + `npm start`.
+3. In the project: **+ Create → Database → PostgreSQL**.
+4. Service → Variables:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (reference the DB you just added)
+   - `JWT_SECRET` = output of `openssl rand -hex 32`
+   - `ADMIN_EMAIL` / `ADMIN_PASSWORD` = real credentials (used on first boot only)
+   - `UPLOAD_DIR` = `/data/uploads`
+5. Service → Settings → **+ Volume**, mount path `/data` — uploaded photos/documents
+   survive redeploys. (Skipping this loses all uploads on every deploy.)
+6. Settings → Networking → **Generate Domain** → you get `https://<name>.up.railway.app`.
+   Check `https://<name>.up.railway.app/health` returns `{"ok":true}`.
+
+Then point the mobile app at it: set `EXPO_PUBLIC_API_URL=https://<name>.up.railway.app/api`
+in `mobile/.env` (and in the EAS build profile when building an APK).
+
 ## API overview
 
 `POST /api/auth/login` → `{ token, user }`; all other routes need `Authorization: Bearer <token>`.
@@ -99,11 +120,13 @@ A physical device can't reach `localhost` — use your machine's LAN IP in `.env
 | `/designations` `/locations` | full CRUD | `?search=` |
 | `/assignments` | full CRUD | creating one auto-ends the employee's active assignment |
 | `/attendance` | full CRUD | `?attendance_date=`, `?employee_id=`; unique per employee/day |
-| `/attendance/roster` | GET | `?date=` — active employees with assignment, day's status, month's present days |
-| `/payments` | full CRUD | `?employee_id=`, `?payment_month/year=`; unique per employee/month |
+| `/attendance/roster` | GET | `?date=` — active employees with assignment, day's status, month's worked days |
+| `/attendance/employee/:employeeId/calendar` | GET | `?month=YYYY-MM` — employee identity, monthly status calendar, worked/marked totals |
+| `/payments` | full CRUD | `?employee_id=`, `?payment_month/year=`; supports installment records |
+| `/payments/tracking` | GET | `?month=&year=&employee_id=` — payroll, paid, remaining, and employee salary status |
 | `/documents` `/uniforms` | full CRUD | `?employee_id=` |
 | `/users` | full CRUD | admin-only; manage office staff logins |
 
 ## Deliberately deferred (from the doc's future list)
 
-Forgot password, dashboard "Recent Activities" feed, per-permission staff roles (currently admin/staff), native date/time pickers (text inputs with validation for now), cloud storage (local disk uploads), and everything in section 9 of the spec.
+Forgot password, dashboard "Recent Activities" feed, per-permission staff roles (currently admin/staff), cloud storage (local disk uploads), and everything in section 9 of the spec.
