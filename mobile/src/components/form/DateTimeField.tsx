@@ -265,6 +265,9 @@ export const DateTimeField = <T extends FieldValues>({
                     <DateTimePicker
                       {...commonPickerProps}
                       display="spinner"
+                      themeVariant="light"
+                      textColor="#0f172a"
+                      accentColor="#2563eb"
                       onChange={(_event, nextValue) => {
                         if (nextValue) setDraft(nextValue);
                       }}
