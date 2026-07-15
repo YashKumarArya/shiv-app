@@ -9,6 +9,7 @@ import documents from './modules/documents.js';
 import employees from './modules/employees.js';
 import locations from './modules/locations.js';
 import payments from './modules/payments.js';
+import settings from './modules/settings.js';
 import uniforms from './modules/uniforms.js';
 import uploads from './modules/uploads.js';
 import users from './modules/users.js';
@@ -19,6 +20,7 @@ routes.use('/auth', auth);
 
 routes.use(requireAuth);
 routes.use('/dashboard', dashboard);
+routes.use('/settings', settings);
 routes.use('/uploads', uploads);
 routes.use('/designations', designations);
 routes.use('/employees', employees);

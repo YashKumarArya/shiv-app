@@ -32,6 +32,9 @@ interface SalaryEmployee {
   last_name?: string | null;
   designation_name?: string | null;
   effective_salary: number;
+  worked_days: number;
+  payable_days: number;
+  per_day_rate: number;
   due_amount: number;
   paid_amount: number;
   remaining_amount: number;
@@ -368,14 +371,14 @@ export default function SalaryTracking() {
                   {visibleEmployees.map((employee, index) => {
                     const meta = statusMeta[employee.status];
                     const paid = Number(employee.paid_amount ?? 0);
-                    const salary = Number(employee.effective_salary ?? employee.due_amount ?? 0);
-                    const progress = salary > 0 ? Math.min(100, Math.max(0, (paid / salary) * 100)) : 0;
+                    const earned = Number(employee.due_amount ?? 0);
+                    const progress = earned > 0 ? Math.min(100, Math.max(0, (paid / earned) * 100)) : 0;
                     return (
                       <Pressable
                         key={employee.employee_id}
                         onPress={() => openEmployee(employee)}
                         accessibilityRole="button"
-                        accessibilityLabel={`${employeeName(employee)}, ${meta.label}, ${amount(employee.paid_amount)} paid of ${amount(employee.effective_salary)}`}
+                        accessibilityLabel={`${employeeName(employee)}, ${meta.label}, ${amount(employee.paid_amount)} paid of ${amount(employee.due_amount)} earned`}
                         accessibilityHint={employee.status === 'Not Set' ? 'Opens employee salary setup' : 'Opens payment history and installment actions'}
                         className={`p-4 active:bg-slate-50 ${index < visibleEmployees.length - 1 ? 'border-b border-slate-100' : ''}`}
                       >
@@ -410,10 +413,10 @@ export default function SalaryTracking() {
                             <View className="flex-row items-end justify-between">
                               <View>
                                 <Text className="text-[11px] font-semibold text-slate-400">
-                                  PAID / SALARY · {employee.payment_count ?? 0} {(employee.payment_count ?? 0) === 1 ? 'PAYMENT' : 'PAYMENTS'}
+                                  PAID / EARNED · {employee.payment_count ?? 0} {(employee.payment_count ?? 0) === 1 ? 'PAYMENT' : 'PAYMENTS'}
                                 </Text>
                                 <Text className="mt-0.5 text-sm font-extrabold text-slate-800">
-                                  {amount(employee.paid_amount)} <Text className="font-semibold text-slate-400">/ {amount(employee.effective_salary)}</Text>
+                                  {amount(employee.paid_amount)} <Text className="font-semibold text-slate-400">/ {amount(employee.due_amount)}</Text>
                                 </Text>
                               </View>
                               <View className="items-end">
@@ -429,6 +432,10 @@ export default function SalaryTracking() {
                                 style={{ width: `${progress}%` }}
                               />
                             </View>
+                            <Text className="mt-1.5 text-[11px] font-medium text-slate-400">
+                              Worked {employee.worked_days} of {employee.payable_days} payable days ·{' '}
+                              {amount(employee.per_day_rate)}/day
+                            </Text>
                           </View>
                         )}
                       </Pressable>

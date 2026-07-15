@@ -4,6 +4,7 @@ import { query, queryOne } from '../config/db.js';
 import { crudRouter } from '../lib/crud.js';
 import { dateString, id, money } from '../lib/fields.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
+import { getSalaryOffMode, payableDays, type SalaryOffMode } from '../lib/payroll.js';
 
 const schema = z.object({
   employee_id: id,
@@ -36,6 +37,9 @@ interface PaymentTrackingRow {
   employee_salary: number | null;
   default_salary: number | null;
   effective_salary: number;
+  worked_days: number;
+  payable_days: number;
+  per_day_rate: number;
   due_amount: number;
   paid_amount: number;
   remaining_amount: number;
@@ -90,6 +94,18 @@ const validatePaymentTotal = async (body: Record<string, unknown>, paymentId?: s
   if (!salary) throw new HttpError(404, 'Employee not found');
   if (salary.salary == null) throw new HttpError(409, 'Set the employee salary before recording a payment');
 
+  // Pay is earned per attendance day: salary / payable days × days worked so far.
+  const worked = await queryOne<{ worked: number }>(
+    `SELECT COALESCE(SUM(CASE WHEN status = 'Present' THEN 1 WHEN status = 'Half Day' THEN 0.5 ELSE 0 END), 0)::float AS worked
+     FROM attendance
+     WHERE employee_id = $1
+       AND attendance_date >= make_date($2, $3, 1)
+       AND attendance_date < make_date($2, $3, 1) + INTERVAL '1 month'`,
+    [employeeId, year, month],
+  );
+  const perDay = salary.salary / payableDays(year, month, await getSalaryOffMode());
+  const earned = Math.round(perDay * (worked?.worked ?? 0) * 100) / 100;
+
   const totals = await queryOne<{ paid: number }>(
     `SELECT COALESCE(SUM(amount), 0)::float AS paid
      FROM payments
@@ -97,9 +113,12 @@ const validatePaymentTotal = async (body: Record<string, unknown>, paymentId?: s
        AND ($4::int IS NULL OR id <> $4)`,
     [employeeId, month, year, paymentId ? Number(paymentId) : null],
   );
-  if ((totals?.paid ?? 0) + amount > salary.salary) {
-    const remaining = Math.max(salary.salary - (totals?.paid ?? 0), 0);
-    throw new HttpError(409, `Payment exceeds the remaining salary amount (${remaining.toFixed(2)})`);
+  if ((totals?.paid ?? 0) + amount > earned) {
+    const remaining = Math.max(earned - (totals?.paid ?? 0), 0);
+    throw new HttpError(
+      409,
+      `Payment exceeds salary earned from attendance (${(worked?.worked ?? 0)} days worked, ${remaining.toFixed(2)} remaining)`,
+    );
   }
   return body;
 };
@@ -114,18 +133,22 @@ router.get('/tracking', asyncHandler(async (req, res) => {
   }
 
   const { month, year, employee_id: employeeId } = parsed.data;
+  const offMode = await getSalaryOffMode();
+  const payable = payableDays(year, month, offMode);
   const employees = await query<PaymentTrackingRow>(
     `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name, e.photo,
             d.id AS designation_id, d.designation_name,
             e.salary::float AS employee_salary, d.default_salary::float AS default_salary,
             COALESCE(e.salary, d.default_salary, 0)::float AS effective_salary,
-            COALESCE(e.salary, d.default_salary, 0)::float AS due_amount,
+            att.worked_days,
+            $4::float AS payable_days,
+            ROUND(COALESCE(e.salary, d.default_salary, 0)::numeric / $4::numeric, 2)::float AS per_day_rate,
+            pay.due AS due_amount,
             COALESCE(payment_totals.paid_amount, 0)::float AS paid_amount,
-            GREATEST(COALESCE(e.salary, d.default_salary, 0) - COALESCE(payment_totals.paid_amount, 0), 0)::float
-              AS remaining_amount,
+            GREATEST(pay.due - COALESCE(payment_totals.paid_amount, 0)::float, 0) AS remaining_amount,
             CASE
               WHEN e.salary IS NULL AND d.default_salary IS NULL THEN 'Not Set'
-              WHEN COALESCE(payment_totals.paid_amount, 0) >= COALESCE(e.salary, d.default_salary, 0) THEN 'Paid'
+              WHEN pay.due > 0 AND COALESCE(payment_totals.paid_amount, 0) >= pay.due THEN 'Paid'
               WHEN COALESCE(payment_totals.paid_amount, 0) > 0 THEN 'Partial'
               ELSE 'Due'
             END AS status,
@@ -133,6 +156,16 @@ router.get('/tracking', asyncHandler(async (req, res) => {
             latest_payment.payment
      FROM employees e
      JOIN designations d ON d.id = e.designation_id
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(SUM(CASE WHEN a.status = 'Present' THEN 1 WHEN a.status = 'Half Day' THEN 0.5 ELSE 0 END), 0)::float AS worked_days
+       FROM attendance a
+       WHERE a.employee_id = e.id
+         AND a.attendance_date >= make_date($2, $1, 1)
+         AND a.attendance_date < make_date($2, $1, 1) + INTERVAL '1 month'
+     ) att ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT ROUND(COALESCE(e.salary, d.default_salary, 0)::numeric * att.worked_days::numeric / $4::numeric, 2)::float AS due
+     ) pay ON TRUE
      LEFT JOIN LATERAL (
        SELECT SUM(p.amount)::float AS paid_amount, COUNT(*)::int AS payment_count
        FROM payments p
@@ -168,7 +201,7 @@ router.get('/tracking', asyncHandler(async (req, res) => {
        OR COALESCE(payment_totals.payment_count, 0) > 0)
        AND e.joining_date < (make_date($2, $1, 1) + INTERVAL '1 month')
      ORDER BY e.first_name, e.last_name, e.employee_code`,
-    [month, year, employeeId ?? null],
+    [month, year, employeeId ?? null, payable],
   );
 
   const summary = employees.reduce(
@@ -193,7 +226,7 @@ router.get('/tracking', asyncHandler(async (req, res) => {
     },
   );
 
-  res.json({ month, year, employees, summary });
+  res.json({ month, year, salary_off_mode: offMode, payable_days: payable, employees, summary });
 }));
 
 router.use(crudRouter({

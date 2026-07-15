@@ -137,6 +137,16 @@ CREATE TABLE IF NOT EXISTS uniform_issues (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- App-wide configuration (e.g. salary_off_mode: none | sundays | 3 | 4)
+CREATE TABLE IF NOT EXISTS app_settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO app_settings (key, value) VALUES ('salary_off_mode', 'none')
+ON CONFLICT (key) DO NOTHING;
+
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON employee_assignments(employee_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
 CREATE INDEX IF NOT EXISTS idx_payments_employee ON payments(employee_id);

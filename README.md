@@ -122,8 +122,9 @@ in `mobile/.env` (and in the EAS build profile when building an APK).
 | `/attendance` | full CRUD | `?attendance_date=`, `?employee_id=`; unique per employee/day |
 | `/attendance/roster` | GET | `?date=` — active employees with assignment, day's status, month's worked days |
 | `/attendance/employee/:employeeId/calendar` | GET | `?month=YYYY-MM` — employee identity, monthly status calendar, worked/marked totals |
-| `/payments` | full CRUD | `?employee_id=`, `?payment_month/year=`; supports installment records |
-| `/payments/tracking` | GET | `?month=&year=&employee_id=` — payroll, paid, remaining, and employee salary status |
+| `/payments` | full CRUD | `?employee_id=`, `?payment_month/year=`; installments capped at attendance-earned pay |
+| `/payments/tracking` | GET | `?month=&year=&employee_id=` — attendance-based earned pay (salary ÷ payable days × days worked), paid, remaining, status |
+| `/settings` | GET, PUT (admin) | app settings; `salary_off_mode`: `none` \| `sundays` \| `3` \| `4` sets payable days per month |
 | `/documents` `/uniforms` | full CRUD | `?employee_id=` |
 | `/users` | full CRUD | admin-only; manage office staff logins |
 
