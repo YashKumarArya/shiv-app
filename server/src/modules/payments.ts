@@ -24,7 +24,7 @@ const trackingQuerySchema = z.object({
   employee_id: z.coerce.number().int().positive().optional(),
 });
 
-type PaymentTrackingStatus = 'Paid' | 'Partial' | 'Due' | 'Not Set';
+type PaymentTrackingStatus = 'Paid' | 'Partial' | 'Due' | 'Advance' | 'Not Set';
 
 interface PaymentTrackingRow {
   employee_id: number;
@@ -43,6 +43,7 @@ interface PaymentTrackingRow {
   due_amount: number;
   paid_amount: number;
   remaining_amount: number;
+  advance_amount: number;
   status: PaymentTrackingStatus;
   payment_count: number;
   payment: {
@@ -94,18 +95,8 @@ const validatePaymentTotal = async (body: Record<string, unknown>, paymentId?: s
   if (!salary) throw new HttpError(404, 'Employee not found');
   if (salary.salary == null) throw new HttpError(409, 'Set the employee salary before recording a payment');
 
-  // Pay is earned per attendance day: salary / payable days × days worked so far.
-  const worked = await queryOne<{ worked: number }>(
-    `SELECT COALESCE(SUM(CASE WHEN status = 'Present' THEN 1 WHEN status = 'Half Day' THEN 0.5 ELSE 0 END), 0)::float AS worked
-     FROM attendance
-     WHERE employee_id = $1
-       AND attendance_date >= make_date($2, $3, 1)
-       AND attendance_date < make_date($2, $3, 1) + INTERVAL '1 month'`,
-    [employeeId, year, month],
-  );
-  const perDay = salary.salary / payableDays(year, month, await getSalaryOffMode());
-  const earned = Math.round(perDay * (worked?.worked ?? 0) * 100) / 100;
-
+  // Paying beyond attendance-earned pay is allowed (tracked as advance),
+  // but never beyond the full monthly salary.
   const totals = await queryOne<{ paid: number }>(
     `SELECT COALESCE(SUM(amount), 0)::float AS paid
      FROM payments
@@ -113,12 +104,9 @@ const validatePaymentTotal = async (body: Record<string, unknown>, paymentId?: s
        AND ($4::int IS NULL OR id <> $4)`,
     [employeeId, month, year, paymentId ? Number(paymentId) : null],
   );
-  if ((totals?.paid ?? 0) + amount > earned) {
-    const remaining = Math.max(earned - (totals?.paid ?? 0), 0);
-    throw new HttpError(
-      409,
-      `Payment exceeds salary earned from attendance (${(worked?.worked ?? 0)} days worked, ${remaining.toFixed(2)} remaining)`,
-    );
+  if ((totals?.paid ?? 0) + amount > salary.salary) {
+    const remaining = Math.max(salary.salary - (totals?.paid ?? 0), 0);
+    throw new HttpError(409, `Payment exceeds the monthly salary (${remaining.toFixed(2)} can still be paid)`);
   }
   return body;
 };
@@ -146,8 +134,10 @@ router.get('/tracking', asyncHandler(async (req, res) => {
             pay.due AS due_amount,
             COALESCE(payment_totals.paid_amount, 0)::float AS paid_amount,
             GREATEST(pay.due - COALESCE(payment_totals.paid_amount, 0)::float, 0) AS remaining_amount,
+            GREATEST(COALESCE(payment_totals.paid_amount, 0)::float - pay.due, 0) AS advance_amount,
             CASE
               WHEN e.salary IS NULL AND d.default_salary IS NULL THEN 'Not Set'
+              WHEN COALESCE(payment_totals.paid_amount, 0) > pay.due THEN 'Advance'
               WHEN pay.due > 0 AND COALESCE(payment_totals.paid_amount, 0) >= pay.due THEN 'Paid'
               WHEN COALESCE(payment_totals.paid_amount, 0) > 0 THEN 'Partial'
               ELSE 'Due'
@@ -209,9 +199,11 @@ router.get('/tracking', asyncHandler(async (req, res) => {
       totals.total_payroll += employee.due_amount;
       totals.total_paid += employee.paid_amount;
       totals.total_remaining += employee.remaining_amount;
+      totals.total_advance += employee.advance_amount;
       if (employee.status === 'Paid') totals.paid_count += 1;
       if (employee.status === 'Partial') totals.partial_count += 1;
       if (employee.status === 'Due') totals.due_count += 1;
+      if (employee.status === 'Advance') totals.advance_count += 1;
       if (employee.status === 'Not Set') totals.not_set_count += 1;
       return totals;
     },
@@ -219,9 +211,11 @@ router.get('/tracking', asyncHandler(async (req, res) => {
       total_payroll: 0,
       total_paid: 0,
       total_remaining: 0,
+      total_advance: 0,
       paid_count: 0,
       partial_count: 0,
       due_count: 0,
+      advance_count: 0,
       not_set_count: 0,
     },
   );

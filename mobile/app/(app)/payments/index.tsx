@@ -21,7 +21,7 @@ import { Screen } from '@/components/ui/Screen';
 import { depth } from '@/components/ui/depth';
 import { monthName } from '@/lib/format';
 
-type SalaryStatus = 'Paid' | 'Partial' | 'Due' | 'Not Set';
+type SalaryStatus = 'Paid' | 'Partial' | 'Due' | 'Advance' | 'Not Set';
 type StatusFilter = 'All' | SalaryStatus;
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -38,6 +38,7 @@ interface SalaryEmployee {
   due_amount: number;
   paid_amount: number;
   remaining_amount: number;
+  advance_amount: number;
   status: SalaryStatus;
   payment_count: number;
   payment?: {
@@ -54,15 +55,17 @@ interface SalaryTrackingResponse {
     total_payroll: number;
     total_paid: number;
     total_remaining: number;
+    total_advance: number;
     paid_count: number;
     partial_count: number;
     due_count: number;
+    advance_count: number;
     not_set_count: number;
   };
   employees: SalaryEmployee[];
 }
 
-const filters: StatusFilter[] = ['All', 'Due', 'Partial', 'Paid', 'Not Set'];
+const filters: StatusFilter[] = ['All', 'Due', 'Partial', 'Paid', 'Advance', 'Not Set'];
 
 const statusMeta: Record<SalaryStatus, {
   label: string;
@@ -83,6 +86,10 @@ const statusMeta: Record<SalaryStatus, {
   Due: {
     label: 'Due', icon: 'time', chip: 'bg-amber-50', text: 'text-amber-700',
     avatar: 'bg-amber-50', iconColor: '#d97706',
+  },
+  Advance: {
+    label: 'Advance paid', icon: 'trending-up', chip: 'bg-sky-50', text: 'text-sky-700',
+    avatar: 'bg-sky-50', iconColor: '#0284c7',
   },
   'Not Set': {
     label: 'Salary not set', icon: 'alert-circle', chip: 'bg-rose-50', text: 'text-rose-700',
@@ -153,21 +160,23 @@ export default function SalaryTracking() {
   );
   const salarySummary = useMemo(() => {
     if (!employeeId) return data?.summary ?? {
-      total_payroll: 0, total_paid: 0, total_remaining: 0,
-      paid_count: 0, partial_count: 0, due_count: 0, not_set_count: 0,
+      total_payroll: 0, total_paid: 0, total_remaining: 0, total_advance: 0,
+      paid_count: 0, partial_count: 0, due_count: 0, advance_count: 0, not_set_count: 0,
     };
     return scopedEmployees.reduce((summary, employee) => {
       summary.total_payroll += Number(employee.due_amount ?? 0);
       summary.total_paid += Number(employee.paid_amount ?? 0);
       summary.total_remaining += Number(employee.remaining_amount ?? 0);
+      summary.total_advance += Number(employee.advance_amount ?? 0);
       if (employee.status === 'Paid') summary.paid_count += 1;
       if (employee.status === 'Partial') summary.partial_count += 1;
       if (employee.status === 'Due') summary.due_count += 1;
+      if (employee.status === 'Advance') summary.advance_count += 1;
       if (employee.status === 'Not Set') summary.not_set_count += 1;
       return summary;
     }, {
-      total_payroll: 0, total_paid: 0, total_remaining: 0,
-      paid_count: 0, partial_count: 0, due_count: 0, not_set_count: 0,
+      total_payroll: 0, total_paid: 0, total_remaining: 0, total_advance: 0,
+      paid_count: 0, partial_count: 0, due_count: 0, advance_count: 0, not_set_count: 0,
     });
   }, [data?.summary, employeeId, scopedEmployees]);
   const statusCounts: Record<StatusFilter, number> = {
@@ -175,6 +184,7 @@ export default function SalaryTracking() {
     Paid: salarySummary.paid_count,
     Partial: salarySummary.partial_count,
     Due: salarySummary.due_count,
+    Advance: salarySummary.advance_count,
     'Not Set': salarySummary.not_set_count,
   };
 
@@ -420,15 +430,27 @@ export default function SalaryTracking() {
                                 </Text>
                               </View>
                               <View className="items-end">
-                                <Text className="text-[11px] font-semibold text-slate-400">REMAINING</Text>
-                                <Text className={`mt-0.5 text-sm font-extrabold ${employee.remaining_amount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                  {amount(employee.remaining_amount)}
+                                <Text className="text-[11px] font-semibold text-slate-400">
+                                  {employee.advance_amount > 0 ? 'ADVANCE PAID' : 'REMAINING'}
+                                </Text>
+                                <Text
+                                  className={`mt-0.5 text-sm font-extrabold ${
+                                    employee.advance_amount > 0
+                                      ? 'text-sky-600'
+                                      : employee.remaining_amount > 0
+                                        ? 'text-amber-600'
+                                        : 'text-emerald-600'
+                                  }`}
+                                >
+                                  {amount(employee.advance_amount > 0 ? employee.advance_amount : employee.remaining_amount)}
                                 </Text>
                               </View>
                             </View>
                             <View className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
                               <View
-                                className={`h-full rounded-full ${employee.status === 'Paid' ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                                className={`h-full rounded-full ${
+                                  employee.status === 'Paid' ? 'bg-emerald-500' : employee.status === 'Advance' ? 'bg-sky-500' : 'bg-violet-500'
+                                }`}
                                 style={{ width: `${progress}%` }}
                               />
                             </View>
