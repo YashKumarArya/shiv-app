@@ -9,6 +9,10 @@ import { validate } from '../middleware/validate.js';
 // Future app-wide settings join this object.
 const schema = z.object({
   salary_off_mode: z.enum(SALARY_OFF_MODES),
+  company_name: z.string().max(150),
+  company_address: z.string().max(300),
+  company_phone: z.string().max(20),
+  company_logo: z.string().max(300),
 }).partial();
 
 const allSettings = async () => {

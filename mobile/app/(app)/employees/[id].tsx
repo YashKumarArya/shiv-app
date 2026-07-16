@@ -32,6 +32,14 @@ const recordGroups = [
         color: '#d97706',
         tone: 'bg-amber-50',
       },
+      {
+        title: 'ID Card',
+        subtitle: 'Printable card with photo and details',
+        icon: 'card-outline',
+        path: 'employees/id-card',
+        color: '#7c3aed',
+        tone: 'bg-violet-50',
+      },
     ],
   },
   {
@@ -174,6 +182,7 @@ export default function EmployeeDetail() {
         <InfoRow label="Alternate phone" value={employee.alternate_phone} />
         <InfoRow label="Email" value={employee.email} />
         <InfoRow label="Date of birth" value={employee.date_of_birth && formatDate(employee.date_of_birth)} />
+        <InfoRow label="Blood group" value={employee.blood_group} />
         <InfoRow label="Aadhaar" value={employee.aadhaar_number} />
         <InfoRow label="Address" value={employee.address} />
       </View>

@@ -45,12 +45,16 @@ CREATE TABLE IF NOT EXISTS employees (
     joining_date DATE NOT NULL,
     salary DECIMAL(10,2),
     aadhaar_number VARCHAR(20),
+    blood_group VARCHAR(5),
     address TEXT,
     photo TEXT,
     status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Older installations predate this column.
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS blood_group VARCHAR(5);
 
 CREATE TABLE IF NOT EXISTS locations (
     id SERIAL PRIMARY KEY,
@@ -137,14 +141,20 @@ CREATE TABLE IF NOT EXISTS uniform_issues (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- App-wide configuration (e.g. salary_off_mode: none | sundays | 3 | 4)
+-- App-wide configuration: salary_off_mode (none | sundays | 3 | 4) and the
+-- company_* keys used to brand printable employee ID cards.
 CREATE TABLE IF NOT EXISTS app_settings (
     key VARCHAR(50) PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO app_settings (key, value) VALUES ('salary_off_mode', 'none')
+INSERT INTO app_settings (key, value) VALUES
+    ('salary_off_mode', 'none'),
+    ('company_name', ''),
+    ('company_address', ''),
+    ('company_phone', ''),
+    ('company_logo', '')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON employee_assignments(employee_id);

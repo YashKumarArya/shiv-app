@@ -29,6 +29,7 @@ export interface Employee {
   joining_date: string;
   salary?: string;
   aadhaar_number?: string;
+  blood_group?: string;
   address?: string;
   photo?: string;
   status: 'Active' | 'Inactive';

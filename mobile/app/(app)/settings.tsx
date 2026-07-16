@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Pressable, Text, View } from 'react-native';
 import { z } from 'zod';
 import { api, errorMessage } from '@/api/client';
 import { FormField } from '@/components/form/FormField';
+import { PhotoPicker } from '@/components/form/PhotoPicker';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { InfoRow } from '@/components/ui/InfoRow';
@@ -30,6 +32,15 @@ const salaryModes = [
 
 type SalaryOffMode = (typeof salaryModes)[number]['value'];
 
+const companySchema = z.object({
+  company_name: z.string().optional(),
+  company_address: z.string().optional(),
+  company_phone: z.string().optional(),
+  company_logo: z.string().optional(),
+});
+type CompanyForm = z.infer<typeof companySchema>;
+const companyDefaults: CompanyForm = { company_name: '', company_address: '', company_phone: '', company_logo: '' };
+
 export default function Settings() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -52,6 +63,28 @@ export default function Settings() {
     onError: (error) => notify('Unable to update setting', errorMessage(error)),
   });
   const salaryMode = (settings?.salary_off_mode ?? 'none') as SalaryOffMode;
+
+  const companyForm = useForm<CompanyForm>({ defaultValues: companyDefaults });
+  useEffect(() => {
+    if (!settings) return;
+    companyForm.reset({
+      company_name: settings.company_name ?? '',
+      company_address: settings.company_address ?? '',
+      company_phone: settings.company_phone ?? '',
+      company_logo: settings.company_logo ?? '',
+    });
+  }, [settings]);
+
+  const saveCompany = useMutation({
+    mutationFn: (values: CompanyForm) => api.put('/settings', values),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings'] });
+      notify('Branding updated', 'The logo and company details will appear on ID cards.');
+    },
+    onError: (error) => notify('Unable to update branding', errorMessage(error)),
+  });
+  const submitCompany = companyForm.handleSubmit((values) => saveCompany.mutate(values));
+
   const { control, handleSubmit, reset, formState } = useForm<PasswordForm>({
     resolver: zodResolver(schema),
     defaultValues: { current_password: '', new_password: '' },
@@ -180,6 +213,33 @@ export default function Settings() {
             Employees earn the daily rate for each day worked (half days count as 0.5). Applies to salary
             tracking and payment limits.
           </Text>
+
+          <View className="mb-2 mt-7 flex-row items-center px-1">
+            <View className="h-8 w-8 items-center justify-center rounded-lg bg-brand-50">
+              <Ionicons name="business-outline" size={17} color="#2457d6" />
+            </View>
+            <View className="ml-2.5">
+              <Text className="font-semibold text-slate-900">Company & ID card</Text>
+              <Text className="text-xs text-slate-500">Shown on every employee's printable ID card</Text>
+            </View>
+          </View>
+          <View className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <PhotoPicker control={companyForm.control} name="company_logo" label="Company logo" />
+            <FormField
+              control={companyForm.control}
+              name="company_name"
+              label="Company name"
+              placeholder="e.g. Shiv Security Services"
+            />
+            <FormField
+              control={companyForm.control}
+              name="company_address"
+              label="Address / city"
+              placeholder="e.g. Moradabad"
+            />
+            <FormField control={companyForm.control} name="company_phone" label="Phone" keyboardType="phone-pad" />
+            <Button title="Save branding" onPress={submitCompany} loading={saveCompany.isPending} />
+          </View>
         </>
       ) : null}
 

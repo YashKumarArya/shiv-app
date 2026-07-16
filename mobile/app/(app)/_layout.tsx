@@ -4,6 +4,7 @@ import { useAuth } from '@/providers/AuthProvider';
 const screens: [name: string, title: string][] = [
   ['employees/[id]', 'Employee Details'],
   ['employees/form', 'Employee'],
+  ['employees/id-card', 'ID Card'],
   ['designations/index', 'Designations'],
   ['designations/form', 'Designation'],
   ['locations/index', 'Locations'],

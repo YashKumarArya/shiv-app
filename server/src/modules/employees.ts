@@ -15,6 +15,7 @@ const schema = z.object({
   joining_date: dateString,
   salary: money.nullable().optional(),
   aadhaar_number: z.string().nullable().optional(),
+  blood_group: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
   photo: z.string().nullable().optional(),
   status: z.enum(['Active', 'Inactive']).optional(),

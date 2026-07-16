@@ -3,6 +3,7 @@ import type { Designation } from '@/api/types';
 import { DateTimeField } from '@/components/form/DateTimeField';
 import { FormField } from '@/components/form/FormField';
 import { FormSectionTitle } from '@/components/form/FormSectionTitle';
+import { FormSelect, toOptions } from '@/components/form/FormSelect';
 import { PhotoPicker } from '@/components/form/PhotoPicker';
 import { ResourceSelect } from '@/components/form/ResourceSelect';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +21,7 @@ const schema = z.object({
   alternate_phone: optionalText,
   email: z.string().email('Enter a valid email').or(z.literal('')).optional(),
   aadhaar_number: optionalText,
+  blood_group: optionalText,
   date_of_birth: optionalDate,
   joining_date: dateString,
   salary: optionalMoney,
@@ -28,9 +30,11 @@ const schema = z.object({
 
 const defaults = {
   photo: '', first_name: '', last_name: '', designation_id: '',
-  phone: '', alternate_phone: '', email: '', aadhaar_number: '',
+  phone: '', alternate_phone: '', email: '', aadhaar_number: '', blood_group: '',
   date_of_birth: '', joining_date: today(), salary: '', address: '',
 };
+
+const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function EmployeeForm() {
   const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm('employees', schema, defaults);
@@ -68,6 +72,7 @@ export default function EmployeeForm() {
       <FormSectionTitle title="Personal & verification" />
       <DateTimeField control={control} name="date_of_birth" label="Date of birth" maximumDate={new Date()} allowClear />
       <FormField control={control} name="aadhaar_number" label="Aadhaar Number" keyboardType="number-pad" />
+      <FormSelect control={control} name="blood_group" label="Blood group" options={toOptions(bloodGroups)} />
     </Screen>
   );
 }
