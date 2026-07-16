@@ -133,25 +133,16 @@ export default function EmployeeIdCard() {
             </View>
           </View>
 
-          <View className="items-center">
-            <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
-              {employee.photo ? (
-                <Image source={{ uri: fileUrl(employee.photo) }} resizeMode="cover" className="h-full w-full" />
-              ) : (
-                <Ionicons name="person-outline" size={24} color="#94a3b8" />
-              )}
-            </View>
-            {signature ? (
-              <Image
-                source={{ uri: fileUrl(signature) }}
-                resizeMode="contain"
-                style={{ width: 64, height: 24, marginTop: 6 }}
-              />
-            ) : null}
+          <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
+            {employee.photo ? (
+              <Image source={{ uri: fileUrl(employee.photo) }} resizeMode="cover" className="h-full w-full" />
+            ) : (
+              <Ionicons name="person-outline" size={24} color="#94a3b8" />
+            )}
           </View>
         </View>
 
-        <View className="mt-3">
+        <View className="mt-3" style={signature ? { paddingRight: 82 } : undefined}>
           <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold />
           <IdRow label="Rank" value={employee.designation_name} />
           <IdRow label="ID" value={employee.employee_code} />
@@ -160,6 +151,16 @@ export default function EmployeeIdCard() {
           <IdRow label="Site" value={siteName} />
           <IdRow label="Address" value={employee.address} numberOfLines={2} />
         </View>
+
+        {signature ? (
+          <View style={{ position: 'absolute', right: 14, bottom: 12, alignItems: 'center' }}>
+            <Image source={{ uri: fileUrl(signature) }} resizeMode="contain" style={{ width: 76, height: 30 }} />
+            <View style={{ width: 76, height: 1, backgroundColor: '#94a3b8' }} />
+            <Text style={{ marginTop: 2, fontSize: 7.5, fontWeight: '600', color: '#64748b' }}>
+              Authorized Signatory
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View className="mt-6 w-full max-w-[440px]">
