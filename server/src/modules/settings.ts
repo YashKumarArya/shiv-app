@@ -13,6 +13,7 @@ const schema = z.object({
   company_address: z.string().max(300),
   company_phone: z.string().max(20),
   company_logo: z.string().max(300),
+  company_signature: z.string().max(300),
 }).partial();
 
 const allSettings = async () => {

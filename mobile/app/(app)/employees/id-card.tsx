@@ -65,6 +65,7 @@ export default function EmployeeIdCard() {
   const companyAddress = settings?.company_address;
   const companyPhone = settings?.company_phone;
   const logo = settings?.company_logo;
+  const signature = settings?.company_signature;
   const siteName = assignments?.[0]?.site_name;
 
   const shareCard = async () => {
@@ -132,12 +133,21 @@ export default function EmployeeIdCard() {
             </View>
           </View>
 
-          <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
-            {employee.photo ? (
-              <Image source={{ uri: fileUrl(employee.photo) }} resizeMode="cover" className="h-full w-full" />
-            ) : (
-              <Ionicons name="person-outline" size={24} color="#94a3b8" />
-            )}
+          <View className="items-center">
+            <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
+              {employee.photo ? (
+                <Image source={{ uri: fileUrl(employee.photo) }} resizeMode="cover" className="h-full w-full" />
+              ) : (
+                <Ionicons name="person-outline" size={24} color="#94a3b8" />
+              )}
+            </View>
+            {signature ? (
+              <Image
+                source={{ uri: fileUrl(signature) }}
+                resizeMode="contain"
+                style={{ width: 64, height: 24, marginTop: 6 }}
+              />
+            ) : null}
           </View>
         </View>
 

@@ -154,7 +154,8 @@ INSERT INTO app_settings (key, value) VALUES
     ('company_name', ''),
     ('company_address', ''),
     ('company_phone', ''),
-    ('company_logo', '')
+    ('company_logo', ''),
+    ('company_signature', '')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON employee_assignments(employee_id);

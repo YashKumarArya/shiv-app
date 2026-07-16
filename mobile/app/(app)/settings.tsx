@@ -37,9 +37,12 @@ const companySchema = z.object({
   company_address: z.string().optional(),
   company_phone: z.string().optional(),
   company_logo: z.string().optional(),
+  company_signature: z.string().optional(),
 });
 type CompanyForm = z.infer<typeof companySchema>;
-const companyDefaults: CompanyForm = { company_name: '', company_address: '', company_phone: '', company_logo: '' };
+const companyDefaults: CompanyForm = {
+  company_name: '', company_address: '', company_phone: '', company_logo: '', company_signature: '',
+};
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -72,6 +75,7 @@ export default function Settings() {
       company_address: settings.company_address ?? '',
       company_phone: settings.company_phone ?? '',
       company_logo: settings.company_logo ?? '',
+      company_signature: settings.company_signature ?? '',
     });
   }, [settings]);
 
@@ -238,6 +242,7 @@ export default function Settings() {
               placeholder="e.g. Moradabad"
             />
             <FormField control={companyForm.control} name="company_phone" label="Phone" keyboardType="phone-pad" />
+            <PhotoPicker control={companyForm.control} name="company_signature" label="Authorized signature" />
             <Button title="Save branding" onPress={submitCompany} loading={saveCompany.isPending} />
           </View>
         </>
