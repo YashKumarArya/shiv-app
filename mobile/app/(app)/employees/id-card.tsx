@@ -26,8 +26,11 @@ interface IdRowProps {
 
 const IdRow = ({ label, value, bold, large, numberOfLines, valueStyle }: IdRowProps) => {
   if (!value) return null;
+  // Rows that can wrap to more than one line should align the label to the
+  // first line, not float centered against the whole wrapped block.
+  const multiline = (numberOfLines ?? 1) > 1;
   return (
-    <View className={`flex-row items-center ${large ? 'mb-1 py-0.5' : 'py-[1.5px]'}`}>
+    <View className={`flex-row ${multiline ? 'items-start' : 'items-center'} ${large ? 'mb-1 py-0.5' : 'py-[1.5px]'}`}>
       <Text className="w-[82px] text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
       <Text
         numberOfLines={numberOfLines}
