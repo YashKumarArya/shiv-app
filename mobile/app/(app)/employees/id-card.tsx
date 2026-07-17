@@ -1,18 +1,42 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import {
+  useRef,
+  useState,
+} from 'react';
+
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+} from 'react-native';
 import { captureRef } from 'react-native-view-shot';
-import { api, errorMessage, fileUrl } from '@/api/client';
-import { employeeName, type Assignment, type Employee } from '@/api/types';
+
+import {
+  api,
+  errorMessage,
+  fileUrl,
+} from '@/api/client';
+import {
+  type Assignment,
+  type Employee,
+  employeeName,
+} from '@/api/types';
 import { Button } from '@/components/ui/Button';
 import { depth } from '@/components/ui/depth';
 import { Screen } from '@/components/ui/Screen';
-import { useItem, useList } from '@/hooks/useCrud';
+import {
+  useItem,
+  useList,
+} from '@/hooks/useCrud';
 import { formatDate } from '@/lib/format';
 import { notify } from '@/lib/notify';
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 
 interface IdRowProps {
   label: string;
@@ -21,14 +45,13 @@ interface IdRowProps {
   /** The employee's name — the one field that should read as the card's headline. */
   large?: boolean;
   numberOfLines?: number;
+  /** Top-align the label instead of centering it, for a row that may wrap to several lines. */
+  multiline?: boolean;
   valueStyle?: StyleProp<TextStyle>;
 }
 
-const IdRow = ({ label, value, bold, large, numberOfLines, valueStyle }: IdRowProps) => {
+const IdRow = ({ label, value, bold, large, numberOfLines, multiline, valueStyle }: IdRowProps) => {
   if (!value) return null;
-  // Rows that can wrap to more than one line should align the label to the
-  // first line, not float centered against the whole wrapped block.
-  const multiline = (numberOfLines ?? 1) > 1;
   return (
     <View className={`flex-row ${multiline ? 'items-start' : 'items-center'} ${large ? 'mb-1 py-0.5' : 'py-[1.5px]'}`}>
       <Text className="w-[82px] text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
@@ -100,10 +123,12 @@ export default function EmployeeIdCard() {
 
   return (
     <Screen scroll className="items-center pt-5">
+      {/* No fixed aspectRatio: a landscape ID-card shape for typical content, but the
+          card grows taller instead of clipping/truncating when an address is long. */}
       <View
         ref={cardRef}
         collapsable={false}
-        style={[depth.raised, { aspectRatio: 1.6 }]}
+        style={depth.raised}
         className="w-full max-w-[440px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-4"
       >
         {logo ? (
@@ -114,20 +139,23 @@ export default function EmployeeIdCard() {
             <Image
               source={{ uri: fileUrl(logo) }}
               resizeMode="contain"
-              style={{ width: '60%', height: '70%', opacity: 0.07 }}
+              style={{ width: '60%', height: '80%', opacity: 0.07 }}
             />
           </View>
         ) : null}
 
-        <View className="flex-row items-center justify-center">
+        <View className="flex-row items-start justify-center">
           {logo ? (
-            <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-9 w-9 rounded-lg" />
+            <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-11 w-11 rounded-lg" />
           ) : (
-            <View className="h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
-              <Ionicons name="shield-checkmark-outline" size={18} color="#2457d6" />
+            <View className="h-11 w-11 items-center justify-center rounded-lg bg-brand-50">
+              <Ionicons name="shield-checkmark-outline" size={20} color="#2457d6" />
             </View>
           )}
-          <View className="ml-2 items-center">
+          {/* mt-3 shifts just enough that the logo's center lines up with the
+              company name line specifically, not the midpoint of the whole
+              name+address+phone block (which sits lower since it has 3 lines). */}
+          <View className="ml-2 mt-3 items-center">
             <Text numberOfLines={1} className="text-[15px] font-extrabold text-slate-900">
               {companyName}
             </Text>
@@ -159,7 +187,7 @@ export default function EmployeeIdCard() {
             <IdRow
               label="Address"
               value={employee.address}
-              numberOfLines={2}
+              multiline
               valueStyle={signature ? { paddingRight: 82 } : undefined}
             />
           </View>
