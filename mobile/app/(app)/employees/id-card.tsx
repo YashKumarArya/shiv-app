@@ -112,29 +112,29 @@ export default function EmployeeIdCard() {
           </View>
         ) : null}
 
-        <View className="items-center">
-          <View className="flex-row items-center">
-            {logo ? (
-              <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-9 w-9 rounded-lg" />
-            ) : (
-              <View className="h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
-                <Ionicons name="shield-checkmark-outline" size={18} color="#2457d6" />
-              </View>
-            )}
-            <Text numberOfLines={1} className="ml-2 text-[14px] font-extrabold text-slate-900">
+        <View className="flex-row items-center justify-center">
+          {logo ? (
+            <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-9 w-9 rounded-lg" />
+          ) : (
+            <View className="h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
+              <Ionicons name="shield-checkmark-outline" size={18} color="#2457d6" />
+            </View>
+          )}
+          <View className="ml-2 items-center">
+            <Text numberOfLines={1} className="text-[14px] font-extrabold text-slate-900">
               {companyName}
             </Text>
+            {companyAddress ? (
+              <Text numberOfLines={1} className="text-[9px] text-slate-500">
+                {companyAddress}
+              </Text>
+            ) : null}
+            {companyPhone ? (
+              <Text numberOfLines={1} className="text-[9px] text-slate-500">
+                Ph: {companyPhone}
+              </Text>
+            ) : null}
           </View>
-          {companyAddress ? (
-            <Text numberOfLines={1} className="mt-0.5 text-[9px] text-slate-500">
-              {companyAddress}
-            </Text>
-          ) : null}
-          {companyPhone ? (
-            <Text numberOfLines={1} className="text-[9px] text-slate-500">
-              Ph: {companyPhone}
-            </Text>
-          ) : null}
         </View>
 
         <View className="mt-3 flex-row items-start">
