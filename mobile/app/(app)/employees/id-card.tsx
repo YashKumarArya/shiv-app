@@ -137,7 +137,7 @@ export default function EmployeeIdCard() {
           </View>
         </View>
 
-        <View className="mt-3 flex-row items-start">
+        <View className="mt-5 flex-row items-start">
           <View className="flex-1 pr-2" style={signature ? { paddingRight: 82 } : undefined}>
             <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold />
             <IdRow label="Rank" value={employee.designation_name} />
