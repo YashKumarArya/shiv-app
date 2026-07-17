@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -13,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, errorMessage } from '@/api/client';
+import { api, errorMessage, fileUrl } from '@/api/client';
 import { employeeName } from '@/api/types';
 import { DateStepper } from '@/components/DateStepper';
 import { Badge } from '@/components/ui/Badge';
@@ -79,6 +80,7 @@ interface RosterRow {
   first_name: string;
   last_name?: string;
   employee_code: string;
+  photo?: string;
   shift?: string;
   site_name?: string;
   attendance_id?: number;
@@ -261,12 +263,21 @@ export default function AttendanceTab() {
                       accessibilityHint="Shows the days this employee worked"
                       className="min-h-14 flex-1 flex-row items-center rounded-xl active:bg-slate-50"
                     >
-                      <View
-                        className="h-11 w-11 items-center justify-center rounded-xl bg-indigo-50"
-                        accessible={false}
-                      >
-                        <Text className="text-sm font-bold text-indigo-700">{initials(row)}</Text>
-                      </View>
+                      {row.photo ? (
+                        <Image
+                          source={{ uri: fileUrl(row.photo) }}
+                          accessible={false}
+                          resizeMode="cover"
+                          className="h-11 w-11 rounded-xl bg-slate-100"
+                        />
+                      ) : (
+                        <View
+                          className="h-11 w-11 items-center justify-center rounded-xl bg-indigo-50"
+                          accessible={false}
+                        >
+                          <Text className="text-sm font-bold text-indigo-700">{initials(row)}</Text>
+                        </View>
+                      )}
 
                       <View className="ml-3 flex-1 pr-2">
                         <Text className="text-[15px] font-bold text-slate-900" numberOfLines={1}>

@@ -17,7 +17,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./logo-and-background/logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -39,6 +42,13 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "335ae15b-687c-4376-b817-05eced37416d"
+      }
+    },
+    "owner": "yashkarya"
   }
 }

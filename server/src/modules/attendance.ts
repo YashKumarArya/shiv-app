@@ -45,7 +45,7 @@ router.get('/roster', asyncHandler(async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'date must be YYYY-MM-DD');
 
   const rows = await query(
-    `SELECT e.id AS employee_id, e.first_name, e.last_name, e.employee_code,
+    `SELECT e.id AS employee_id, e.first_name, e.last_name, e.employee_code, e.photo,
             asg.shift, loc.site_name,
             att.id AS attendance_id, att.status,
             month.worked_days,
