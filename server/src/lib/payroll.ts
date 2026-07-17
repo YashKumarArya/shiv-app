@@ -1,25 +1,20 @@
 import { query } from '../config/db.js';
 
-export const SALARY_OFF_MODES = ['none', 'sundays', 'fixed'] as const;
-export type SalaryOffMode = (typeof SALARY_OFF_MODES)[number];
-
 export interface SalarySettings {
-  mode: SalaryOffMode;
-  /** Days off per month when mode is 'fixed'; ignored otherwise. */
-  days: number;
+  excludeSundays: boolean;
+  /** Additional non-working days per month, on top of Sundays if excluded. */
+  extraDays: number;
 }
 
 export const getSalarySettings = async (): Promise<SalarySettings> => {
   const rows = await query<{ key: string; value: string }>(
-    `SELECT key, value FROM app_settings WHERE key IN ('salary_off_mode', 'salary_off_days')`,
+    `SELECT key, value FROM app_settings WHERE key IN ('salary_exclude_sundays', 'salary_off_days')`,
   );
   const map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
-  const mode = SALARY_OFF_MODES.includes(map.salary_off_mode as SalaryOffMode)
-    ? (map.salary_off_mode as SalaryOffMode)
-    : 'none';
+  const excludeSundays = map.salary_exclude_sundays === 'true';
   const parsedDays = Number(map.salary_off_days);
-  const days = Number.isFinite(parsedDays) && parsedDays > 0 ? Math.floor(parsedDays) : 0;
-  return { mode, days };
+  const extraDays = Number.isFinite(parsedDays) && parsedDays > 0 ? Math.floor(parsedDays) : 0;
+  return { excludeSundays, extraDays };
 };
 
 const daysInMonth = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -32,11 +27,10 @@ const sundaysInMonth = (year: number, month: number) => {
   return count;
 };
 
-/** Days an employee is expected to work in a month under the salary off-days setting.
- *  Per-day pay = monthly salary / payableDays; earned = per-day pay × worked days. */
-export const payableDays = (year: number, month: number, { mode, days }: SalarySettings) => {
+/** Days an employee is expected to work in a month, combining both settings additively:
+ *  total days − Sundays (if excluded) − extra days. Per-day pay = salary / payableDays. */
+export const payableDays = (year: number, month: number, { excludeSundays, extraDays }: SalarySettings) => {
   const total = daysInMonth(year, month);
-  if (mode === 'sundays') return total - sundaysInMonth(year, month);
-  if (mode === 'fixed') return Math.max(total - days, 1);
-  return total;
+  const sundays = excludeSundays ? sundaysInMonth(year, month) : 0;
+  return Math.max(total - sundays - extraDays, 1);
 };

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Switch, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
 import { api, errorMessage } from '@/api/client';
 import { FormField } from '@/components/form/FormField';
@@ -22,14 +22,6 @@ const schema = z.object({
 });
 
 type PasswordForm = z.infer<typeof schema>;
-
-const salaryModes = [
-  { value: 'none', label: 'Full month', description: 'Salary ÷ every day of the month' },
-  { value: 'sundays', label: 'Sundays off', description: 'Salary ÷ (days in month − Sundays)' },
-  { value: 'fixed', label: 'Custom days off', description: 'Salary ÷ (days in month − a number you set)' },
-] as const;
-
-type SalaryOffMode = (typeof salaryModes)[number]['value'];
 
 const companySchema = z.object({
   company_name: z.string().optional(),
@@ -55,8 +47,8 @@ export default function Settings() {
     enabled: isAdmin,
   });
 
-  const saveSalaryMode = useMutation({
-    mutationFn: (payload: { salary_off_mode: SalaryOffMode; salary_off_days?: number }) =>
+  const saveSalarySettings = useMutation({
+    mutationFn: (payload: { salary_exclude_sundays?: string; salary_off_days?: number }) =>
       api.put('/settings', payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -65,30 +57,24 @@ export default function Settings() {
     },
     onError: (error) => notify('Unable to update setting', errorMessage(error)),
   });
-  const salaryMode = (settings?.salary_off_mode ?? 'none') as SalaryOffMode;
+  const excludeSundays = settings?.salary_exclude_sundays === 'true';
 
-  // Tapping "Custom days off" only reveals the input below — nothing saves until Apply is pressed,
-  // so the radio can show 'fixed' selected before a days value exists yet.
-  const [uiMode, setUiMode] = useState<SalaryOffMode>(salaryMode);
-  useEffect(() => setUiMode(salaryMode), [salaryMode]);
-
-  const [customDays, setCustomDays] = useState(settings?.salary_off_days ?? '4');
+  const [extraDaysInput, setExtraDaysInput] = useState(settings?.salary_off_days ?? '0');
   useEffect(() => {
-    if (settings?.salary_off_days) setCustomDays(settings.salary_off_days);
+    if (settings?.salary_off_days !== undefined) setExtraDaysInput(settings.salary_off_days);
   }, [settings?.salary_off_days]);
 
-  const chooseSalaryMode = (mode: SalaryOffMode) => {
-    setUiMode(mode);
-    if (mode !== 'fixed') saveSalaryMode.mutate({ salary_off_mode: mode });
+  const toggleSundays = (value: boolean) => {
+    saveSalarySettings.mutate({ salary_exclude_sundays: value ? 'true' : 'false' });
   };
 
-  const applyCustomDays = () => {
-    const days = Number(customDays);
-    if (!Number.isInteger(days) || days < 1 || days > 30) {
-      notify('Enter a valid number', 'Days off must be a whole number between 1 and 30.');
+  const applyExtraDays = () => {
+    const days = Number(extraDaysInput);
+    if (!Number.isInteger(days) || days < 0 || days > 30) {
+      notify('Enter a valid number', 'Extra days off must be a whole number between 0 and 30.');
       return;
     }
-    saveSalaryMode.mutate({ salary_off_mode: 'fixed', salary_off_days: days });
+    saveSalarySettings.mutate({ salary_off_days: days });
   };
 
   const companyForm = useForm<CompanyForm>({ defaultValues: companyDefaults });
@@ -210,60 +196,48 @@ export default function Settings() {
               <Text className="text-xs text-slate-500">Daily pay = monthly salary ÷ payable days</Text>
             </View>
           </View>
-          <View className="rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
-            {salaryModes.map((mode) => {
-              const selected = uiMode === mode.value;
-              return (
-                <Pressable
-                  key={mode.value}
-                  onPress={() => chooseSalaryMode(mode.value)}
-                  disabled={saveSalaryMode.isPending}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected, disabled: saveSalaryMode.isPending }}
-                  className={`flex-row items-center rounded-xl px-3 py-3 ${selected ? 'bg-emerald-50' : 'active:bg-slate-50'}`}
-                >
-                  <View
-                    className={`h-5 w-5 items-center justify-center rounded-full border-2 ${selected ? 'border-emerald-600' : 'border-slate-300'}`}
-                  >
-                    {selected ? <View className="h-2.5 w-2.5 rounded-full bg-emerald-600" /> : null}
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className={`text-sm font-semibold ${selected ? 'text-emerald-800' : 'text-slate-800'}`}>
-                      {mode.label}
-                    </Text>
-                    <Text className="mt-0.5 text-xs text-slate-500">
-                      {mode.value === 'fixed' && salaryMode === 'fixed'
-                        ? `Salary ÷ (days in month − ${settings?.salary_off_days ?? '?'})`
-                        : mode.description}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+          <View className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="text-sm font-semibold text-slate-800">Exclude Sundays</Text>
+                <Text className="mt-0.5 text-xs text-slate-500">Sundays don't count as payable days</Text>
+              </View>
+              <Switch
+                value={excludeSundays}
+                onValueChange={toggleSundays}
+                disabled={saveSalarySettings.isPending}
+                trackColor={{ true: '#059669' }}
+              />
+            </View>
 
-            {uiMode === 'fixed' ? (
-              <View className="mt-1 flex-row items-center gap-2 border-t border-slate-100 px-3 pb-1 pt-3">
+            <View className="mt-4 border-t border-slate-100 pt-4">
+              <Text className="text-sm font-semibold text-slate-800">Extra days off</Text>
+              <Text className="mt-0.5 text-xs text-slate-500">
+                Additional non-working days per month, on top of Sundays if excluded
+              </Text>
+              <View className="mt-3 flex-row items-center gap-2">
                 <TextInput
-                  value={String(customDays)}
-                  onChangeText={setCustomDays}
+                  value={String(extraDaysInput)}
+                  onChangeText={setExtraDaysInput}
                   keyboardType="number-pad"
-                  placeholder="e.g. 4"
+                  placeholder="0"
                   placeholderTextColor="#94a3b8"
                   className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-sm font-semibold text-slate-800"
                 />
-                <Text className="flex-1 text-xs text-slate-500">days off per month</Text>
+                <Text className="flex-1 text-xs text-slate-500">days / month</Text>
                 <Button
                   title="Apply"
-                  onPress={applyCustomDays}
-                  loading={saveSalaryMode.isPending}
+                  onPress={applyExtraDays}
+                  loading={saveSalarySettings.isPending}
                   variant="secondary"
                 />
               </View>
-            ) : null}
+            </View>
           </View>
           <Text className="mt-2 px-1 text-[11px] text-slate-400">
-            Employees earn the daily rate for each day worked (half days count as 0.5). Applies to salary
-            tracking and payment limits.
+            Payable days = days in month{excludeSundays ? ' − Sundays' : ''}
+            {Number(settings?.salary_off_days) > 0 ? ` − ${settings?.salary_off_days}` : ''}. Employees earn the
+            daily rate for each day worked (half days count as 0.5).
           </Text>
 
           <View className="mb-2 mt-7 flex-row items-center px-1">

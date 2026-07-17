@@ -1,15 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../config/db.js';
-import { SALARY_OFF_MODES } from '../lib/payroll.js';
 import { asyncHandler } from '../lib/http.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 
 // Future app-wide settings join this object.
 const schema = z.object({
-  salary_off_mode: z.enum(SALARY_OFF_MODES),
-  salary_off_days: z.coerce.number().int().min(1).max(30),
+  salary_exclude_sundays: z.enum(['true', 'false']),
+  salary_off_days: z.coerce.number().int().min(0).max(30),
   company_name: z.string().max(150),
   company_address: z.string().max(300),
   company_phone: z.string().max(20),

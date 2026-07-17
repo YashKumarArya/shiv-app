@@ -222,8 +222,8 @@ router.get('/tracking', asyncHandler(async (req, res) => {
 
   res.json({
     month, year,
-    salary_off_mode: salarySettings.mode,
-    salary_off_days: salarySettings.days,
+    salary_exclude_sundays: salarySettings.excludeSundays,
+    salary_off_days: salarySettings.extraDays,
     payable_days: payable,
     employees, summary,
   });

@@ -141,18 +141,22 @@ CREATE TABLE IF NOT EXISTS uniform_issues (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- App-wide configuration: salary_off_mode (none | sundays | fixed), with
--- salary_off_days giving the day count when mode is 'fixed', and the
--- company_* keys used to brand printable employee ID cards.
+-- App-wide configuration: salary_exclude_sundays (true|false) and
+-- salary_off_days (extra non-working days per month) combine additively —
+-- payable days = days in month − Sundays (if excluded) − extra days.
+-- Plus the company_* keys used to brand printable employee ID cards.
 CREATE TABLE IF NOT EXISTS app_settings (
     key VARCHAR(50) PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Superseded by salary_exclude_sundays + salary_off_days.
+DELETE FROM app_settings WHERE key = 'salary_off_mode';
+
 INSERT INTO app_settings (key, value) VALUES
-    ('salary_off_mode', 'none'),
-    ('salary_off_days', '4'),
+    ('salary_exclude_sundays', 'false'),
+    ('salary_off_days', '0'),
     ('company_name', ''),
     ('company_address', ''),
     ('company_phone', ''),
