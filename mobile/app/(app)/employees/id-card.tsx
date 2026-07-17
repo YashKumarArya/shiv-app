@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { api, errorMessage, fileUrl } from '@/api/client';
 import { employeeName, type Assignment, type Employee } from '@/api/types';
@@ -19,15 +19,17 @@ interface IdRowProps {
   value?: string | null;
   bold?: boolean;
   numberOfLines?: number;
+  valueStyle?: StyleProp<TextStyle>;
 }
 
-const IdRow = ({ label, value, bold, numberOfLines }: IdRowProps) => {
+const IdRow = ({ label, value, bold, numberOfLines, valueStyle }: IdRowProps) => {
   if (!value) return null;
   return (
     <View className="flex-row py-[1.5px]">
       <Text className="w-[78px] text-[11px] font-semibold text-slate-500">{label}</Text>
       <Text
         numberOfLines={numberOfLines}
+        style={valueStyle}
         className={`flex-1 text-[12.5px] ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
       >
         {value}
@@ -138,14 +140,23 @@ export default function EmployeeIdCard() {
         </View>
 
         <View className="mt-5 flex-row items-start">
-          <View className="flex-1 pr-2" style={signature ? { paddingRight: 82 } : undefined}>
-            <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold />
-            <IdRow label="Rank" value={employee.designation_name} />
-            <IdRow label="ID" value={employee.employee_code} />
-            <IdRow label="Blood Grp" value={employee.blood_group} />
-            <IdRow label="D.O.B" value={employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined} />
-            <IdRow label="Site" value={siteName} />
-            <IdRow label="Address" value={employee.address} numberOfLines={2} />
+          <View className="flex-1 pr-2">
+            <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold numberOfLines={1} />
+            <IdRow label="Rank" value={employee.designation_name} numberOfLines={1} />
+            <IdRow label="ID" value={employee.employee_code} numberOfLines={1} />
+            <IdRow label="Blood Grp" value={employee.blood_group} numberOfLines={1} />
+            <IdRow
+              label="D.O.B"
+              value={employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined}
+              numberOfLines={1}
+            />
+            <IdRow label="Site" value={siteName} numberOfLines={1} />
+            <IdRow
+              label="Address"
+              value={employee.address}
+              numberOfLines={2}
+              valueStyle={signature ? { paddingRight: 82 } : undefined}
+            />
           </View>
 
           <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
