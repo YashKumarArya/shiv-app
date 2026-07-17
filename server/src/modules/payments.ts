@@ -4,7 +4,7 @@ import { query, queryOne } from '../config/db.js';
 import { crudRouter } from '../lib/crud.js';
 import { dateString, id, money } from '../lib/fields.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
-import { getSalaryOffMode, payableDays, type SalaryOffMode } from '../lib/payroll.js';
+import { getSalarySettings, payableDays } from '../lib/payroll.js';
 
 const schema = z.object({
   employee_id: id,
@@ -121,8 +121,8 @@ router.get('/tracking', asyncHandler(async (req, res) => {
   }
 
   const { month, year, employee_id: employeeId } = parsed.data;
-  const offMode = await getSalaryOffMode();
-  const payable = payableDays(year, month, offMode);
+  const salarySettings = await getSalarySettings();
+  const payable = payableDays(year, month, salarySettings);
   const employees = await query<PaymentTrackingRow>(
     `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name, e.photo,
             d.id AS designation_id, d.designation_name,
@@ -220,7 +220,13 @@ router.get('/tracking', asyncHandler(async (req, res) => {
     },
   );
 
-  res.json({ month, year, salary_off_mode: offMode, payable_days: payable, employees, summary });
+  res.json({
+    month, year,
+    salary_off_mode: salarySettings.mode,
+    salary_off_days: salarySettings.days,
+    payable_days: payable,
+    employees, summary,
+  });
 }));
 
 router.use(crudRouter({

@@ -141,7 +141,8 @@ CREATE TABLE IF NOT EXISTS uniform_issues (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- App-wide configuration: salary_off_mode (none | sundays | 3 | 4) and the
+-- App-wide configuration: salary_off_mode (none | sundays | fixed), with
+-- salary_off_days giving the day count when mode is 'fixed', and the
 -- company_* keys used to brand printable employee ID cards.
 CREATE TABLE IF NOT EXISTS app_settings (
     key VARCHAR(50) PRIMARY KEY,
@@ -151,6 +152,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 INSERT INTO app_settings (key, value) VALUES
     ('salary_off_mode', 'none'),
+    ('salary_off_days', '4'),
     ('company_name', ''),
     ('company_address', ''),
     ('company_phone', ''),

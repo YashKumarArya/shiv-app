@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
 import { api, errorMessage } from '@/api/client';
 import { FormField } from '@/components/form/FormField';
@@ -26,8 +26,7 @@ type PasswordForm = z.infer<typeof schema>;
 const salaryModes = [
   { value: 'none', label: 'Full month', description: 'Salary ÷ every day of the month' },
   { value: 'sundays', label: 'Sundays off', description: 'Salary ÷ (days in month − Sundays)' },
-  { value: '4', label: '4 days off', description: 'Salary ÷ (days in month − 4)' },
-  { value: '3', label: '3 days off', description: 'Salary ÷ (days in month − 3)' },
+  { value: 'fixed', label: 'Custom days off', description: 'Salary ÷ (days in month − a number you set)' },
 ] as const;
 
 type SalaryOffMode = (typeof salaryModes)[number]['value'];
@@ -57,7 +56,8 @@ export default function Settings() {
   });
 
   const saveSalaryMode = useMutation({
-    mutationFn: (salary_off_mode: SalaryOffMode) => api.put('/settings', { salary_off_mode }),
+    mutationFn: (payload: { salary_off_mode: SalaryOffMode; salary_off_days?: number }) =>
+      api.put('/settings', payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
       await queryClient.invalidateQueries({ queryKey: ['payments'] });
@@ -66,6 +66,30 @@ export default function Settings() {
     onError: (error) => notify('Unable to update setting', errorMessage(error)),
   });
   const salaryMode = (settings?.salary_off_mode ?? 'none') as SalaryOffMode;
+
+  // Tapping "Custom days off" only reveals the input below — nothing saves until Apply is pressed,
+  // so the radio can show 'fixed' selected before a days value exists yet.
+  const [uiMode, setUiMode] = useState<SalaryOffMode>(salaryMode);
+  useEffect(() => setUiMode(salaryMode), [salaryMode]);
+
+  const [customDays, setCustomDays] = useState(settings?.salary_off_days ?? '4');
+  useEffect(() => {
+    if (settings?.salary_off_days) setCustomDays(settings.salary_off_days);
+  }, [settings?.salary_off_days]);
+
+  const chooseSalaryMode = (mode: SalaryOffMode) => {
+    setUiMode(mode);
+    if (mode !== 'fixed') saveSalaryMode.mutate({ salary_off_mode: mode });
+  };
+
+  const applyCustomDays = () => {
+    const days = Number(customDays);
+    if (!Number.isInteger(days) || days < 1 || days > 30) {
+      notify('Enter a valid number', 'Days off must be a whole number between 1 and 30.');
+      return;
+    }
+    saveSalaryMode.mutate({ salary_off_mode: 'fixed', salary_off_days: days });
+  };
 
   const companyForm = useForm<CompanyForm>({ defaultValues: companyDefaults });
   useEffect(() => {
@@ -188,11 +212,11 @@ export default function Settings() {
           </View>
           <View className="rounded-2xl border border-slate-100 bg-white p-2 shadow-sm">
             {salaryModes.map((mode) => {
-              const selected = salaryMode === mode.value;
+              const selected = uiMode === mode.value;
               return (
                 <Pressable
                   key={mode.value}
-                  onPress={() => !selected && saveSalaryMode.mutate(mode.value)}
+                  onPress={() => chooseSalaryMode(mode.value)}
                   disabled={saveSalaryMode.isPending}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, disabled: saveSalaryMode.isPending }}
@@ -207,11 +231,35 @@ export default function Settings() {
                     <Text className={`text-sm font-semibold ${selected ? 'text-emerald-800' : 'text-slate-800'}`}>
                       {mode.label}
                     </Text>
-                    <Text className="mt-0.5 text-xs text-slate-500">{mode.description}</Text>
+                    <Text className="mt-0.5 text-xs text-slate-500">
+                      {mode.value === 'fixed' && salaryMode === 'fixed'
+                        ? `Salary ÷ (days in month − ${settings?.salary_off_days ?? '?'})`
+                        : mode.description}
+                    </Text>
                   </View>
                 </Pressable>
               );
             })}
+
+            {uiMode === 'fixed' ? (
+              <View className="mt-1 flex-row items-center gap-2 border-t border-slate-100 px-3 pb-1 pt-3">
+                <TextInput
+                  value={String(customDays)}
+                  onChangeText={setCustomDays}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 4"
+                  placeholderTextColor="#94a3b8"
+                  className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-sm font-semibold text-slate-800"
+                />
+                <Text className="flex-1 text-xs text-slate-500">days off per month</Text>
+                <Button
+                  title="Apply"
+                  onPress={applyCustomDays}
+                  loading={saveSalaryMode.isPending}
+                  variant="secondary"
+                />
+              </View>
+            ) : null}
           </View>
           <Text className="mt-2 px-1 text-[11px] text-slate-400">
             Employees earn the daily rate for each day worked (half days count as 0.5). Applies to salary
