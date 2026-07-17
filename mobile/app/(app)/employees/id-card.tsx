@@ -54,13 +54,13 @@ const IdRow = ({ label, value, bold, large, numberOfLines, multiline, valueStyle
   if (!value) return null;
   return (
     <View className={`flex-row ${multiline ? 'items-start' : 'items-center'} ${large ? 'mb-1 py-0.5' : 'py-[1.5px]'}`}>
-      <Text className="w-[82px] text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
+      <Text className="w-[78px] text-[9px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
       <Text
         numberOfLines={numberOfLines}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
         style={valueStyle}
-        className={`flex-1 ${large ? 'text-[17px]' : 'text-[12.5px]'} ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
+        className={`flex-1 ${large ? 'text-[17px]' : 'text-[11px]'} ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
       >
         {value}
       </Text>
