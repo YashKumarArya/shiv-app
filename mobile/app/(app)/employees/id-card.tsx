@@ -100,11 +100,16 @@ export default function EmployeeIdCard() {
         className="w-full max-w-[440px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-4"
       >
         {logo ? (
-          <Image
-            source={{ uri: fileUrl(logo) }}
-            resizeMode="contain"
-            style={{ position: 'absolute', top: '14%', left: '20%', width: '60%', height: '72%', opacity: 0.07 }}
-          />
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Image
+              source={{ uri: fileUrl(logo) }}
+              resizeMode="contain"
+              style={{ width: '60%', height: '70%', opacity: 0.07 }}
+            />
+          </View>
         ) : null}
 
         <View className="flex-row items-start">
