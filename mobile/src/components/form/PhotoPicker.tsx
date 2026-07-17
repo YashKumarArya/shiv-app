@@ -12,12 +12,14 @@ interface Props<T extends FieldValues> {
   control: Control<T>;
   name: Path<T>;
   label: string;
+  /** For signature photos: server strips the paper background, keeping only the ink. */
+  extractSignature?: boolean;
 }
 
 type Source = 'camera' | 'library';
 
 /** Captures or picks an image, uploads it, and stores the returned path in the form. */
-export const PhotoPicker = <T extends FieldValues>({ control, name, label }: Props<T>) => {
+export const PhotoPicker = <T extends FieldValues>({ control, name, label, extractSignature }: Props<T>) => {
   const upload = useUpload();
 
   const pick = async (source: Source, onChange: (path: string) => void) => {
@@ -49,7 +51,7 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label }: Pro
 
       if (result.canceled || !result.assets[0]) return;
 
-      onChange(await upload.mutateAsync(result.assets[0]));
+      onChange(await upload.mutateAsync({ asset: result.assets[0], extractSignature }));
     } catch (error) {
       notify('Couldn’t add image', errorMessage(error));
     }

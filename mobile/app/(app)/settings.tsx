@@ -264,7 +264,12 @@ export default function Settings() {
               placeholder="e.g. Moradabad"
             />
             <FormField control={companyForm.control} name="company_phone" label="Phone" keyboardType="phone-pad" />
-            <PhotoPicker control={companyForm.control} name="company_signature" label="Authorized signature" />
+            <PhotoPicker
+              control={companyForm.control}
+              name="company_signature"
+              label="Authorized signature"
+              extractSignature
+            />
             <Button title="Save branding" onPress={submitCompany} loading={saveCompany.isPending} />
           </View>
         </>
