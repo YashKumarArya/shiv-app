@@ -57,6 +57,8 @@ const IdRow = ({ label, value, bold, large, numberOfLines, multiline, valueStyle
       <Text className="w-[82px] text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
       <Text
         numberOfLines={numberOfLines}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
         style={valueStyle}
         className={`flex-1 ${large ? 'text-[17px]' : 'text-[12.5px]'} ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
       >
@@ -123,12 +125,13 @@ export default function EmployeeIdCard() {
 
   return (
     <Screen scroll className="items-center pt-5">
-      {/* No fixed aspectRatio: a landscape ID-card shape for typical content, but the
-          card grows taller instead of clipping/truncating when an address is long. */}
+      {/* Fixed CR80-ish aspect ratio, like a real printable ID card. Long text
+          (address, name, company details) shrinks to fit via adjustsFontSizeToFit
+          rather than the card growing or content getting cut off. */}
       <View
         ref={cardRef}
         collapsable={false}
-        style={depth.raised}
+        style={[depth.raised, { aspectRatio: 1.6 }]}
         className="w-full max-w-[440px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-4"
       >
         {logo ? (
@@ -155,17 +158,22 @@ export default function EmployeeIdCard() {
           {/* mt-3 shifts just enough that the logo's center lines up with the
               company name line specifically, not the midpoint of the whole
               name+address+phone block (which sits lower since it has 3 lines). */}
-          <View className="ml-2 mt-3 items-center">
-            <Text numberOfLines={1} className="text-[15px] font-extrabold text-slate-900">
+          <View className="ml-2 mt-3 max-w-[70%] items-center">
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              className="text-[15px] font-extrabold text-slate-900"
+            >
               {companyName}
             </Text>
             {companyAddress ? (
-              <Text numberOfLines={1} className="text-[9.5px] text-slate-500">
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} className="text-[9.5px] text-slate-500">
                 {companyAddress}
               </Text>
             ) : null}
             {companyPhone ? (
-              <Text numberOfLines={1} className="text-[9.5px] text-slate-500">
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} className="text-[9.5px] text-slate-500">
                 Ph: {companyPhone}
               </Text>
             ) : null}
@@ -187,6 +195,7 @@ export default function EmployeeIdCard() {
             <IdRow
               label="Address"
               value={employee.address}
+              numberOfLines={2}
               multiline
               valueStyle={signature ? { paddingRight: 82 } : undefined}
             />
