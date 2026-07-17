@@ -112,30 +112,40 @@ export default function EmployeeIdCard() {
           </View>
         ) : null}
 
-        <View className="flex-row items-start">
-          <View className="mr-2 flex-1 flex-row items-center">
+        <View className="items-center">
+          <View className="flex-row items-center">
             {logo ? (
-              <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-10 w-10 rounded-lg" />
+              <Image source={{ uri: fileUrl(logo) }} resizeMode="contain" className="h-9 w-9 rounded-lg" />
             ) : (
-              <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-50">
-                <Ionicons name="shield-checkmark-outline" size={20} color="#2457d6" />
+              <View className="h-9 w-9 items-center justify-center rounded-lg bg-brand-50">
+                <Ionicons name="shield-checkmark-outline" size={18} color="#2457d6" />
               </View>
             )}
-            <View className="ml-2 flex-1">
-              <Text numberOfLines={1} className="text-[13px] font-extrabold text-slate-900">
-                {companyName}
-              </Text>
-              {companyAddress ? (
-                <Text numberOfLines={1} className="text-[9px] text-slate-500">
-                  {companyAddress}
-                </Text>
-              ) : null}
-              {companyPhone ? (
-                <Text numberOfLines={1} className="text-[9px] text-slate-500">
-                  Ph: {companyPhone}
-                </Text>
-              ) : null}
-            </View>
+            <Text numberOfLines={1} className="ml-2 text-[14px] font-extrabold text-slate-900">
+              {companyName}
+            </Text>
+          </View>
+          {companyAddress ? (
+            <Text numberOfLines={1} className="mt-0.5 text-[9px] text-slate-500">
+              {companyAddress}
+            </Text>
+          ) : null}
+          {companyPhone ? (
+            <Text numberOfLines={1} className="text-[9px] text-slate-500">
+              Ph: {companyPhone}
+            </Text>
+          ) : null}
+        </View>
+
+        <View className="mt-3 flex-row items-start">
+          <View className="flex-1 pr-2" style={signature ? { paddingRight: 82 } : undefined}>
+            <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold />
+            <IdRow label="Rank" value={employee.designation_name} />
+            <IdRow label="ID" value={employee.employee_code} />
+            <IdRow label="Blood Grp" value={employee.blood_group} />
+            <IdRow label="D.O.B" value={employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined} />
+            <IdRow label="Site" value={siteName} />
+            <IdRow label="Address" value={employee.address} numberOfLines={2} />
           </View>
 
           <View className="h-[78px] w-[64px] items-center justify-center overflow-hidden rounded-md border border-slate-300 bg-slate-50">
@@ -145,16 +155,6 @@ export default function EmployeeIdCard() {
               <Ionicons name="person-outline" size={24} color="#94a3b8" />
             )}
           </View>
-        </View>
-
-        <View className="mt-3" style={signature ? { paddingRight: 82 } : undefined}>
-          <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold />
-          <IdRow label="Rank" value={employee.designation_name} />
-          <IdRow label="ID" value={employee.employee_code} />
-          <IdRow label="Blood Grp" value={employee.blood_group} />
-          <IdRow label="D.O.B" value={employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined} />
-          <IdRow label="Site" value={siteName} />
-          <IdRow label="Address" value={employee.address} numberOfLines={2} />
         </View>
 
         {signature ? (
