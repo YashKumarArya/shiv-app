@@ -250,7 +250,12 @@ export default function Settings() {
             </View>
           </View>
           <View className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <PhotoPicker control={companyForm.control} name="company_logo" label="Company logo" />
+            <PhotoPicker
+              control={companyForm.control}
+              name="company_logo"
+              label="Company logo"
+              onAfterChange={(company_logo) => saveCompany.mutate({ company_logo })}
+            />
             <FormField
               control={companyForm.control}
               name="company_name"
@@ -269,6 +274,7 @@ export default function Settings() {
               name="company_signature"
               label="Authorized signature"
               extractSignature
+              onAfterChange={(company_signature) => saveCompany.mutate({ company_signature })}
             />
             <Button title="Save branding" onPress={submitCompany} loading={saveCompany.isPending} />
           </View>

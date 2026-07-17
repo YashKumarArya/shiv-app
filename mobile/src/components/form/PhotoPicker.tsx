@@ -14,12 +14,14 @@ interface Props<T extends FieldValues> {
   label: string;
   /** For signature photos: server strips the paper background, keeping only the ink. */
   extractSignature?: boolean;
+  /** Persist the change (including removal) immediately, instead of waiting for a form submit. */
+  onAfterChange?: (path: string) => void;
 }
 
 type Source = 'camera' | 'library';
 
 /** Captures or picks an image, uploads it, and stores the returned path in the form. */
-export const PhotoPicker = <T extends FieldValues>({ control, name, label, extractSignature }: Props<T>) => {
+export const PhotoPicker = <T extends FieldValues>({ control, name, label, extractSignature, onAfterChange }: Props<T>) => {
   const upload = useUpload();
 
   const pick = async (source: Source, onChange: (path: string) => void) => {
@@ -73,7 +75,12 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
     <Controller
       control={control}
       name={name}
-      render={({ field: { onChange, value }, fieldState: { error } }) => (
+      render={({ field: { onChange, value }, fieldState: { error } }) => {
+        const applyChange = (path: string) => {
+          onChange(path);
+          onAfterChange?.(path);
+        };
+        return (
         <View className="mb-4">
           <Text className="mb-2 text-sm font-semibold text-slate-700">{label}</Text>
           {value ? (
@@ -99,7 +106,7 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
               </View>
               <View className="mt-2 flex-row gap-2">
                 <Pressable
-                  onPress={() => chooseSource(onChange, true)}
+                  onPress={() => chooseSource(applyChange, true)}
                   disabled={upload.isPending}
                   accessibilityRole="button"
                   accessibilityLabel={`Replace ${label}`}
@@ -114,7 +121,7 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
                     message: 'You can add another image before saving.',
                     confirmText: 'Remove',
                     destructive: true,
-                    onConfirm: () => onChange(''),
+                    onConfirm: () => applyChange(''),
                   })}
                   disabled={upload.isPending}
                   accessibilityRole="button"
@@ -147,7 +154,7 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
               </View>
               <View className="flex-row gap-2">
                 <Pressable
-                  onPress={() => void pick('camera', onChange)}
+                  onPress={() => void pick('camera', applyChange)}
                   disabled={upload.isPending}
                   accessibilityRole="button"
                   accessibilityLabel={`Take ${label} photo`}
@@ -157,7 +164,7 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
                   <Text className="ml-2 font-semibold text-white">Camera</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => void pick('library', onChange)}
+                  onPress={() => void pick('library', applyChange)}
                   disabled={upload.isPending}
                   accessibilityRole="button"
                   accessibilityLabel={`Choose ${label} from library`}
@@ -175,7 +182,8 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label, extra
             </Text>
           ) : null}
         </View>
-      )}
+        );
+      }}
     />
   );
 };
