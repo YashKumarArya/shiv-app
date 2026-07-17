@@ -18,19 +18,21 @@ interface IdRowProps {
   label: string;
   value?: string | null;
   bold?: boolean;
+  /** The employee's name — the one field that should read as the card's headline. */
+  large?: boolean;
   numberOfLines?: number;
   valueStyle?: StyleProp<TextStyle>;
 }
 
-const IdRow = ({ label, value, bold, numberOfLines, valueStyle }: IdRowProps) => {
+const IdRow = ({ label, value, bold, large, numberOfLines, valueStyle }: IdRowProps) => {
   if (!value) return null;
   return (
-    <View className="flex-row py-[1.5px]">
-      <Text className="w-[78px] text-[11px] font-semibold text-slate-500">{label}</Text>
+    <View className={`flex-row items-center ${large ? 'mb-1 py-0.5' : 'py-[1.5px]'}`}>
+      <Text className="w-[82px] text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</Text>
       <Text
         numberOfLines={numberOfLines}
         style={valueStyle}
-        className={`flex-1 text-[12.5px] ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
+        className={`flex-1 ${large ? 'text-[17px]' : 'text-[12.5px]'} ${bold ? 'font-extrabold text-slate-900' : 'font-medium text-slate-800'}`}
       >
         {value}
       </Text>
@@ -123,16 +125,16 @@ export default function EmployeeIdCard() {
             </View>
           )}
           <View className="ml-2 items-center">
-            <Text numberOfLines={1} className="text-[14px] font-extrabold text-slate-900">
+            <Text numberOfLines={1} className="text-[15px] font-extrabold text-slate-900">
               {companyName}
             </Text>
             {companyAddress ? (
-              <Text numberOfLines={1} className="text-[9px] text-slate-500">
+              <Text numberOfLines={1} className="text-[9.5px] text-slate-500">
                 {companyAddress}
               </Text>
             ) : null}
             {companyPhone ? (
-              <Text numberOfLines={1} className="text-[9px] text-slate-500">
+              <Text numberOfLines={1} className="text-[9.5px] text-slate-500">
                 Ph: {companyPhone}
               </Text>
             ) : null}
@@ -141,7 +143,7 @@ export default function EmployeeIdCard() {
 
         <View className="mt-5 flex-row items-start">
           <View className="flex-1 pr-2">
-            <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold numberOfLines={1} />
+            <IdRow label="Name" value={employeeName(employee).toUpperCase()} bold large numberOfLines={1} />
             <IdRow label="Rank" value={employee.designation_name} numberOfLines={1} />
             <IdRow label="ID" value={employee.employee_code} numberOfLines={1} />
             <IdRow label="Blood Grp" value={employee.blood_group} numberOfLines={1} />
@@ -172,7 +174,7 @@ export default function EmployeeIdCard() {
           <View style={{ position: 'absolute', right: 14, bottom: 12, alignItems: 'center' }}>
             <Image source={{ uri: fileUrl(signature) }} resizeMode="contain" style={{ width: 76, height: 30 }} />
             <View style={{ width: 76, height: 1, backgroundColor: '#94a3b8' }} />
-            <Text style={{ marginTop: 2, fontSize: 7.5, fontWeight: '600', color: '#64748b' }}>
+            <Text style={{ marginTop: 2, fontSize: 8, fontWeight: '600', letterSpacing: 0.3, color: '#64748b' }}>
               Authorized Signatory
             </Text>
           </View>
