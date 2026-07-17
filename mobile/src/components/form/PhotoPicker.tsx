@@ -38,6 +38,9 @@ export const PhotoPicker = <T extends FieldValues>({ control, name, label }: Pro
       const pickerOptions: ImagePicker.ImagePickerOptions = {
         mediaTypes: ['images'],
         quality: 0.75,
+        // Freeform crop (no fixed aspect) since this same picker is used for
+        // portrait employee photos, rectangular documents, and wide signatures.
+        allowsEditing: true,
       };
       const result =
         source === 'camera'
