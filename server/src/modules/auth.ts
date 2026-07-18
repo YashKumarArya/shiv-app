@@ -8,15 +8,21 @@ import { asyncHandler, HttpError } from '../lib/http.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
-const passwordSchema = z.object({ current_password: z.string().min(1), new_password: z.string().min(6) });
+const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(1).max(200),
+});
+const passwordSchema = z.object({
+  current_password: z.string().min(1).max(200),
+  new_password: z.string().min(6).max(200),
+});
 
 const publicUser = ({ id, name, email, phone, role }: Record<string, unknown>) => ({ id, name, email, phone, role });
 
 const router = Router();
 
 router.post('/login', validate(loginSchema), asyncHandler(async (req, res) => {
-  const user = await queryOne(`SELECT * FROM app_users WHERE email = $1 AND status = TRUE`, [req.body.email]);
+  const user = await queryOne(`SELECT * FROM app_users WHERE LOWER(email) = $1 AND status = TRUE`, [req.body.email]);
   if (!user || !(await bcrypt.compare(req.body.password, user.password_hash))) {
     throw new HttpError(401, 'Invalid email or password');
   }

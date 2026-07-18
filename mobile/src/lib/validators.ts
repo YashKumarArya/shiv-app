@@ -9,5 +9,12 @@ export const optionalText = z.string().optional();
 
 export const requiredId = z.coerce.number().int().positive('Required');
 export const optionalId = z.preprocess(blankToUndefined, z.coerce.number().int().positive().optional());
-export const requiredMoney = z.coerce.number().positive('Enter a valid amount');
-export const optionalMoney = z.preprocess(blankToUndefined, z.coerce.number().nonnegative().optional());
+const twoDecimalMoney = z.number().refine(
+  (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+  'Use at most 2 decimal places',
+);
+export const requiredMoney = z.coerce.number().positive('Enter a valid amount').pipe(twoDecimalMoney);
+export const optionalMoney = z.preprocess(
+  blankToUndefined,
+  z.coerce.number().nonnegative().pipe(twoDecimalMoney).optional(),
+);

@@ -1,5 +1,4 @@
-import { Redirect, Stack } from 'expo-router';
-import { useAuth } from '@/providers/AuthProvider';
+import { Stack } from 'expo-router';
 
 const screens: [name: string, title: string][] = [
   ['employees/[id]', 'Employee Details'],
@@ -16,6 +15,7 @@ const screens: [name: string, title: string][] = [
   ['payments/index', 'Salary Tracking'],
   ['payments/history', 'Payment History'],
   ['payments/form', 'Record Payment'],
+  ['payments/reverse', 'Reverse Payment'],
   ['documents/index', 'Documents'],
   ['documents/form', 'Document'],
   ['uniforms/index', 'Uniforms'],
@@ -24,10 +24,6 @@ const screens: [name: string, title: string][] = [
 ];
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user) return <Redirect href="/login" />;
-
   return (
     <Stack
       screenOptions={{

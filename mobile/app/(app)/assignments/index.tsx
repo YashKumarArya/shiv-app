@@ -20,7 +20,7 @@ export default function Assignments() {
           <ListCard
             title={employeeName(a)}
             subtitle={`${a.site_name} · ${a.shift ?? 'No shift'} · from ${formatDate(a.start_date)}`}
-            badge={a.status}
+            badge={a.display_status ?? a.status}
             href={`/assignments/form?id=${a.id}`}
           />
         )}

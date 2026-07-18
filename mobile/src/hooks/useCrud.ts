@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import { invalidateResourceQueries } from '@/lib/queryInvalidation';
 
 export type ListParams = Record<string, string | number | boolean | undefined>;
 
@@ -22,21 +23,7 @@ export const useSave = (resource: string) => {
   return useMutation({
     mutationFn: async ({ id, ...body }: { id?: string | number } & Record<string, unknown>) =>
       (id ? await api.put(`/${resource}/${id}`, body) : await api.post(`/${resource}`, body)).data,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [resource] });
-      if (resource === 'employees' || resource === 'designations') {
-        await queryClient.invalidateQueries({ queryKey: ['payments'] });
-        await queryClient.invalidateQueries({ queryKey: ['uniforms'] });
-      }
-      if (
-        resource === 'employees'
-        || resource === 'designations'
-        || resource === 'payments'
-        || resource === 'uniforms'
-      ) {
-        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      }
-    },
+    onSuccess: () => invalidateResourceQueries(queryClient, resource),
   });
 };
 
@@ -44,20 +31,6 @@ export const useRemove = (resource: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.delete(`/${resource}/${id}`),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [resource] });
-      if (resource === 'employees' || resource === 'designations') {
-        await queryClient.invalidateQueries({ queryKey: ['payments'] });
-        await queryClient.invalidateQueries({ queryKey: ['uniforms'] });
-      }
-      if (
-        resource === 'employees'
-        || resource === 'designations'
-        || resource === 'payments'
-        || resource === 'uniforms'
-      ) {
-        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      }
-    },
+    onSuccess: () => invalidateResourceQueries(queryClient, resource),
   });
 };

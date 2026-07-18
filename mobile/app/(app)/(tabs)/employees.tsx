@@ -5,6 +5,7 @@ import { employeeName, type Employee } from '@/api/types';
 import { ResourceList } from '@/components/ResourceList';
 import { ListCard } from '@/components/ui/ListCard';
 import { Screen } from '@/components/ui/Screen';
+import { depth } from '@/components/ui/depth';
 
 const employeeInitials = (employee: Employee) =>
   [employee.first_name, employee.last_name]
@@ -25,10 +26,14 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         employee.photo ? (
           <Image
             source={{ uri: fileUrl(employee.photo) }}
-            className="h-12 w-12 rounded-2xl border border-white bg-slate-100 shadow-sm"
+            style={depth.subtle}
+            className="h-12 w-12 rounded-2xl border border-white bg-slate-100"
           />
         ) : (
-          <View className="h-12 w-12 items-center justify-center rounded-2xl border border-white bg-brand-50 shadow-sm">
+          <View
+            style={depth.subtle}
+            className="h-12 w-12 items-center justify-center rounded-2xl border border-white bg-brand-50"
+          >
             <Text className="text-base font-bold text-brand-700">{employeeInitials(employee) || '—'}</Text>
           </View>
         )
@@ -51,8 +56,9 @@ export default function Employees() {
               onPress={() => setStatus(option)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
+              style={selected ? depth.subtle : undefined}
               className={`min-h-12 justify-center rounded-full border px-4 ${
-                selected ? 'border-brand-600 bg-brand-600 shadow-sm' : 'border-slate-200 bg-white'
+                selected ? 'border-brand-600 bg-brand-600' : 'border-slate-200 bg-white'
               }`}
             >
               <Text className={`text-sm font-bold ${selected ? 'text-white' : 'text-slate-600'}`}>{option}</Text>

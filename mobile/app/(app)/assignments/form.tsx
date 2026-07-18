@@ -18,12 +18,16 @@ const schema = z.object({
   start_date: dateString,
 });
 
-const defaults = { employee_id: '', location_id: '', shift: '', start_date: today() };
+const defaults = { employee_id: '', location_id: '', shift: '', start_date: '' };
 
 export default function AssignmentForm() {
   const { employee_id } = useLocalSearchParams<{ employee_id?: string }>();
   const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm(
-    'assignments', schema, { ...defaults, employee_id: employee_id ? Number(employee_id) : '' },
+    'assignments', schema, {
+      ...defaults,
+      employee_id: employee_id ? Number(employee_id) : '',
+      start_date: today(),
+    },
   );
 
   return (
@@ -35,7 +39,7 @@ export default function AssignmentForm() {
       footer={<Button title={isEdit ? 'Update assignment' : 'Assign employee'} icon="checkmark" onPress={submit} loading={saving} />}
     >
       <FormSectionTitle title="Posting details" description="Choose who is being assigned, where and when they start." />
-      <EmployeeSelect control={control} name="employee_id" disabled={!!employee_id} />
+      <EmployeeSelect control={control} name="employee_id" disabled={!!employee_id || isEdit} />
       <ResourceSelect<Location>
         control={control}
         name="location_id"

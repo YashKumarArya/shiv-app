@@ -18,12 +18,16 @@ const schema = z.object({
   remarks: optionalText,
 });
 
-const defaults = { employee_id: '', issued_date: today(), uniform_size: '', remarks: '' };
+const defaults = { employee_id: '', issued_date: '', uniform_size: '', remarks: '' };
 
 export default function UniformForm() {
   const { employee_id } = useLocalSearchParams<{ employee_id?: string }>();
   const { control, submit, saving, formLoading, formError, retryForm } = useResourceForm(
-    'uniforms', schema, { ...defaults, employee_id: employee_id ? Number(employee_id) : '' },
+    'uniforms', schema, {
+      ...defaults,
+      employee_id: employee_id ? Number(employee_id) : '',
+      issued_date: today(),
+    },
   );
 
   return (

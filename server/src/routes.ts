@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { signUploadResponsePaths } from './lib/uploads.js';
 import { requireAdmin, requireAuth } from './middleware/auth.js';
 import assignments from './modules/assignments.js';
 import attendance from './modules/attendance.js';
@@ -19,6 +20,7 @@ export const routes = Router();
 routes.use('/auth', auth);
 
 routes.use(requireAuth);
+routes.use(signUploadResponsePaths);
 routes.use('/dashboard', dashboard);
 routes.use('/settings', settings);
 routes.use('/uploads', uploads);

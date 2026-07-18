@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { query, queryOne } from '../config/db.js';
+import { query, queryOne, withTransaction, type DbExecutor } from '../config/db.js';
 import { crudRouter } from '../lib/crud.js';
-import { dateString, id, timeString } from '../lib/fields.js';
+import { dateString, id, monthString, timeString } from '../lib/fields.js';
 import { asyncHandler, HttpError } from '../lib/http.js';
+import { parseInput } from '../lib/validation.js';
 
 const schema = z.object({
   employee_id: id,
@@ -17,13 +18,22 @@ const schema = z.object({
 
 const router = Router();
 
-const monthString = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'expected YYYY-MM')
-  .refine((value) => {
-    const year = Number(value.slice(0, 4));
-    return year >= 1900 && year <= 2100;
-  }, 'year must be between 1900 and 2100');
+const assertAttendancePayrollOpen = async (
+  tx: DbExecutor,
+  employeeId: number,
+  attendanceDate: string,
+) => {
+  const [year, month] = attendanceDate.split('-').map(Number);
+  await tx.query(`SELECT id FROM employees WHERE id = $1 FOR SHARE`, [employeeId]);
+  const snapshot = await tx.queryOne<{ id: number }>(
+    `SELECT id FROM payroll_snapshots
+     WHERE employee_id = $1 AND payment_year = $2 AND payment_month = $3`,
+    [employeeId, year, month],
+  );
+  if (snapshot) {
+    throw new HttpError(409, 'Attendance cannot be changed after payroll is finalized for this employee and month');
+  }
+};
 
 type AttendanceCalendarStatus = 'Present' | 'Absent' | 'Half Day' | 'Leave';
 
@@ -41,8 +51,10 @@ interface AttendanceCalendarRow {
 /** Daily roster: every active employee with their current assignment,
  *  the day's attendance (if marked), and days present in that month. */
 router.get('/roster', asyncHandler(async (req, res) => {
-  const date = (req.query.date as string) ?? new Date().toISOString().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'date must be YYYY-MM-DD');
+  const businessToday = req.query.date === undefined
+    ? (await queryOne<{ date: string }>(`SELECT to_char(CURRENT_DATE, 'YYYY-MM-DD') AS date`))!.date
+    : req.query.date;
+  const date = parseInput(dateString, businessToday, 'date');
 
   const rows = await query(
     `SELECT e.id AS employee_id, e.first_name, e.last_name, e.employee_code, e.photo,
@@ -54,7 +66,9 @@ router.get('/roster', asyncHandler(async (req, res) => {
      LEFT JOIN LATERAL (
        SELECT a.shift, a.location_id
        FROM employee_assignments a
-       WHERE a.employee_id = e.id AND a.status = 'Active'
+       WHERE a.employee_id = e.id
+         AND a.start_date <= $1::date
+         AND (a.end_date IS NULL OR a.end_date >= $1::date)
        ORDER BY a.start_date DESC LIMIT 1
      ) asg ON TRUE
      LEFT JOIN locations loc ON loc.id = asg.location_id
@@ -69,7 +83,8 @@ router.get('/roster', asyncHandler(async (req, res) => {
        WHERE a2.employee_id = e.id
          AND date_trunc('month', a2.attendance_date) = date_trunc('month', $1::date)
      ) month ON TRUE
-     WHERE e.status = 'Active'
+     WHERE e.joining_date <= $1::date
+       AND (e.status = 'Active' OR att.id IS NOT NULL)
      ORDER BY e.first_name, e.last_name`,
     [date],
   );
@@ -78,27 +93,59 @@ router.get('/roster', asyncHandler(async (req, res) => {
 
 /** Mark every active employee without a record that day as Present. */
 router.post('/mark-all-present', asyncHandler(async (req, res) => {
-  const date = req.body?.date as string | undefined;
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'date must be YYYY-MM-DD');
+  const date = parseInput(dateString, req.body?.date, 'date');
 
-  const rows = await query(
-    `INSERT INTO attendance (employee_id, attendance_date, status, marked_by)
-     SELECT e.id, $1, 'Present', $2 FROM employees e
-     WHERE e.status = 'Active'
-       AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id = e.id AND a.attendance_date = $1)
-     RETURNING id`,
-    [date, req.user!.id],
-  );
+  const rows = await withTransaction(async (tx) => {
+    const [year, month] = date.split('-').map(Number);
+    await tx.query(
+      `SELECT e.id
+       FROM employees e
+       WHERE e.status = 'Active'
+         AND e.joining_date <= $1::date
+         AND NOT EXISTS (
+           SELECT 1 FROM attendance a
+           WHERE a.employee_id = e.id AND a.attendance_date = $1::date
+         )
+       ORDER BY e.id
+       FOR SHARE`,
+      [date],
+    );
+    const finalized = await tx.queryOne<{ employee_code: string }>(
+      `SELECT e.employee_code
+       FROM employees e
+       JOIN payroll_snapshots ps
+         ON ps.employee_id = e.id AND ps.payment_year = $2 AND ps.payment_month = $3
+       WHERE e.status = 'Active'
+         AND e.joining_date <= $1::date
+         AND NOT EXISTS (
+           SELECT 1 FROM attendance a
+           WHERE a.employee_id = e.id AND a.attendance_date = $1::date
+         )
+       ORDER BY e.id
+       LIMIT 1`,
+      [date, year, month],
+    );
+    if (finalized) {
+      throw new HttpError(409, `Mark all cannot change finalized payroll attendance (${finalized.employee_code})`);
+    }
+    return tx.query(
+      `INSERT INTO attendance (employee_id, attendance_date, status, marked_by)
+       SELECT e.id, $1, 'Present', $2 FROM employees e
+       WHERE e.status = 'Active'
+         AND e.joining_date <= $1::date
+         AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id = e.id AND a.attendance_date = $1)
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+      [date, req.user!.id],
+    );
+  });
   res.status(201).json({ marked: rows.length });
 }));
 
 /** One employee's marked attendance for a calendar month. */
 router.get('/employee/:employeeId/calendar', asyncHandler(async (req, res) => {
-  const employeeIdResult = id.safeParse(req.params.employeeId);
-  if (!employeeIdResult.success) throw new HttpError(400, 'employeeId must be a positive integer');
-
-  const monthResult = monthString.safeParse(req.query.month);
-  if (!monthResult.success) throw new HttpError(400, 'month must be YYYY-MM');
+  const employeeId = parseInput(id, req.params.employeeId, 'employeeId');
+  const month = parseInput(monthString, req.query.month, 'month');
 
   const employee = await queryOne<{
     id: number;
@@ -117,11 +164,10 @@ router.get('/employee/:employeeId/calendar', asyncHandler(async (req, res) => {
      FROM employees e
      JOIN designations d ON d.id = e.designation_id
      WHERE e.id = $1`,
-    [employeeIdResult.data],
+    [employeeId],
   );
   if (!employee) throw new HttpError(404, 'Employee not found');
 
-  const month = monthResult.data;
   const attendance = await query<AttendanceCalendarRow>(
     `SELECT a.id, to_char(a.attendance_date, 'YYYY-MM-DD') AS attendance_date,
             a.status, a.check_in, a.check_out, a.remarks,
@@ -167,7 +213,44 @@ router.use(crudRouter({
               FROM attendance
               JOIN employees ON employees.id = attendance.employee_id
               LEFT JOIN locations ON locations.id = attendance.location_id`,
-  beforeCreate: (body, req) => ({ ...body, marked_by: req.user!.id }),
+  beforeCreate: async (body, req, tx) => {
+    const employee = await tx.queryOne<{ joining_date: string }>(
+      `SELECT to_char(joining_date, 'YYYY-MM-DD') AS joining_date
+       FROM employees WHERE id = $1 FOR SHARE`,
+      [body.employee_id],
+    );
+    if (!employee) throw new HttpError(404, 'Employee not found');
+    if (String(body.attendance_date) < employee.joining_date) {
+      throw new HttpError(409, 'Attendance cannot be marked before the employee joining date');
+    }
+    await assertAttendancePayrollOpen(tx, Number(body.employee_id), String(body.attendance_date));
+    return { ...body, marked_by: req.user!.id };
+  },
+  beforeUpdate: async (body, req, attendanceId, tx) => {
+    const existing = await tx.queryOne<{ employee_id: number; attendance_date: string }>(
+      `SELECT employee_id, to_char(attendance_date, 'YYYY-MM-DD') AS attendance_date
+       FROM attendance WHERE id = $1 FOR UPDATE`,
+      [attendanceId],
+    );
+    if (!existing) throw new HttpError(404, 'Attendance record not found');
+    if (body.employee_id !== undefined && Number(body.employee_id) !== existing.employee_id) {
+      throw new HttpError(400, 'employee_id cannot be changed after attendance is marked');
+    }
+    if (body.attendance_date !== undefined && body.attendance_date !== existing.attendance_date) {
+      throw new HttpError(400, 'attendance_date cannot be changed after attendance is marked');
+    }
+    await assertAttendancePayrollOpen(tx, existing.employee_id, existing.attendance_date);
+    return body;
+  },
+  beforeDelete: async (req, attendanceId, tx) => {
+    const existing = await tx.queryOne<{ employee_id: number; attendance_date: string }>(
+      `SELECT employee_id, to_char(attendance_date, 'YYYY-MM-DD') AS attendance_date
+       FROM attendance WHERE id = $1 FOR UPDATE`,
+      [attendanceId],
+    );
+    if (!existing) throw new HttpError(404, 'Attendance record not found');
+    await assertAttendancePayrollOpen(tx, existing.employee_id, existing.attendance_date);
+  },
 }));
 
 export default router;

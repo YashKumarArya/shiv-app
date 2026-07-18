@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { api, errorMessage } from '@/api/client';
+import { employeeInitials, employeeName } from '@/api/types';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Screen } from '@/components/ui/Screen';
@@ -21,6 +22,7 @@ import { depth } from '@/components/ui/depth';
 import { confirmAction } from '@/lib/confirm';
 import { formatDate, today } from '@/lib/format';
 import { notify } from '@/lib/notify';
+import { invalidateResourceQueries } from '@/lib/queryInvalidation';
 
 type UniformStatus = 'Issued' | 'Not Issued';
 type StatusFilter = 'All' | UniformStatus;
@@ -45,17 +47,6 @@ interface UniformTrackingResponse {
 }
 
 const filters: StatusFilter[] = ['All', 'Issued', 'Not Issued'];
-
-const nameOf = (employee: UniformEmployee) =>
-  [employee.first_name, employee.last_name].filter(Boolean).join(' ');
-
-const initialsOf = (employee: UniformEmployee) =>
-  [employee.first_name, employee.last_name]
-    .filter(Boolean)
-    .map((part) => part![0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 
 const SummaryMetric = ({ icon, label, value, color }: {
   icon: IconName;
@@ -89,10 +80,7 @@ export default function UniformTracker() {
       returned: true,
       returned_date: today(),
     }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['uniforms'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    },
+    onSuccess: () => invalidateResourceQueries(queryClient, 'uniforms'),
     onError: (mutationError) => notify('Couldn’t return uniform', errorMessage(mutationError)),
   });
 
@@ -114,7 +102,7 @@ export default function UniformTracker() {
     return scopedEmployees.filter((employee) => {
       if (filter !== 'All' && employee.status !== filter) return false;
       if (!term) return true;
-      return [nameOf(employee), employee.employee_code, employee.designation_name]
+      return [employeeName(employee), employee.employee_code, employee.designation_name]
         .filter(Boolean)
         .some((value) => value!.toLocaleLowerCase().includes(term));
     });
@@ -135,7 +123,7 @@ export default function UniformTracker() {
     if (!employee.issue_id || returnUniform.isPending) return;
     confirmAction({
       title: 'Mark uniform returned?',
-      message: `${nameOf(employee)}’s ${employee.uniform_size ? `size ${employee.uniform_size} ` : ''}uniform will be marked as returned today.`,
+      message: `${employeeName(employee)}’s ${employee.uniform_size ? `size ${employee.uniform_size} ` : ''}uniform will be marked as returned today.`,
       confirmText: 'Mark Returned',
       onConfirm: () => returnUniform.mutate(employee.issue_id!),
     });
@@ -263,7 +251,7 @@ export default function UniformTracker() {
                         onPress={() => openEmployee(employee)}
                         disabled={pending}
                         accessibilityRole="button"
-                        accessibilityLabel={`${nameOf(employee)}, ${employee.employee_code}, uniform ${employee.status}${issued ? `, size ${employee.uniform_size ?? 'not recorded'}, issued ${formatDate(employee.issued_date)}` : ''}`}
+                        accessibilityLabel={`${employeeName(employee)}, ${employee.employee_code}, uniform ${employee.status}${issued ? `, size ${employee.uniform_size ?? 'not recorded'}, issued ${formatDate(employee.issued_date)}` : ''}`}
                         accessibilityHint={issued ? 'Asks to confirm this uniform was returned' : 'Opens the uniform issue form'}
                         accessibilityState={{ disabled: pending, busy: pending }}
                         className={`min-h-[88px] flex-row items-center p-4 active:bg-slate-50 ${
@@ -275,14 +263,14 @@ export default function UniformTracker() {
                             <ActivityIndicator size="small" color="#7c3aed" />
                           ) : (
                             <Text className={`text-sm font-extrabold ${issued ? 'text-emerald-700' : 'text-amber-700'}`}>
-                              {initialsOf(employee)}
+                              {employeeInitials(employee)}
                             </Text>
                           )}
                         </View>
 
                         <View className="ml-3 flex-1 pr-2">
                           <Text className="text-[15px] font-extrabold text-slate-900" numberOfLines={1}>
-                            {nameOf(employee)}
+                            {employeeName(employee)}
                           </Text>
                           <Text className="mt-0.5 text-xs font-medium text-slate-500" numberOfLines={1}>
                             {[employee.employee_code, employee.designation_name].filter(Boolean).join(' · ')}

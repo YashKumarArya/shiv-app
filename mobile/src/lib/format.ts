@@ -10,6 +10,8 @@ const parseLocalDate = (value: string) => {
   return new Date(year, month - 1, day);
 };
 
+const currencyFormatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 });
+
 export const today = () => localDateString(new Date());
 
 export const addDays = (date: string, days: number) => {
@@ -25,3 +27,9 @@ export const formatDate = (date?: string | null) =>
 
 export const monthName = (month: number) =>
   new Date(2000, month - 1).toLocaleString('en', { month: 'long' });
+
+/** Formats API numeric values consistently and never renders an invalid `NaN` amount. */
+export const formatCurrency = (value?: string | number | null) => {
+  const amount = Number(value ?? 0);
+  return `₹${currencyFormatter.format(Number.isFinite(amount) ? amount : 0)}`;
+};

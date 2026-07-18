@@ -32,6 +32,7 @@ import {
 import {
   type Assignment,
   type Employee,
+  employeeInitials,
   employeeName,
 } from '@/api/types';
 import { Button } from '@/components/ui/Button';
@@ -41,7 +42,7 @@ import {
   useItem,
   useList,
 } from '@/hooks/useCrud';
-import { formatDate } from '@/lib/format';
+import { formatDate, today } from '@/lib/format';
 import { notify } from '@/lib/notify';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -102,16 +103,6 @@ const CardText = ({ size, weight = 'regular', lineHeight, style, ...props }: Car
   />
 );
 
-const employeeInitials = (employee: Employee) => {
-  const initials = [employee.first_name, employee.last_name]
-    .filter(Boolean)
-    .map((part) => part!.trim().charAt(0))
-    .join('')
-    .toUpperCase();
-
-  return initials || 'ID';
-};
-
 const escapeHtml = (value?: string | null) => (value ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -144,7 +135,7 @@ const buildCardHtml = ({ employee, companyName, companyAddress, companyPhone, lo
 .signature{position:absolute;right:1.5mm;bottom:2mm;width:22mm;text-align:center}.signature img{display:block;width:20mm;height:7mm;margin:auto;object-fit:contain}.signature .line{width:20mm;border-top:.2mm solid #94a3b8;margin:auto}.signature small{display:block;margin-top:.4mm;color:#64748b;font-size:1.55mm;line-height:2mm;font-weight:700;white-space:nowrap}
 </style></head><body><div class="card">${logoUrl ? `<img class="watermark" src="${escapeHtml(logoUrl)}">` : ''}
 <div class="header">${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}">` : '<div class="logo-fallback">ID</div>'}<div class="company"><h1>${escapeHtml(companyName)}</h1>${companyAddress ? `<p>${escapeHtml(companyAddress)}</p>` : ''}${companyPhone ? `<p>Ph: ${escapeHtml(companyPhone)}</p>` : ''}</div></div>
-<div class="body"><div class="details">${row('Name', employeeName(employee).toUpperCase(), 'name')}${row('Rank', employee.designation_name)}${row('ID', employee.employee_code)}${row('Blood Grp', employee.blood_group)}${row('D.O.B', employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined)}${row('Site', siteName)}</div>${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}">` : `<div class="photo-fallback">${escapeHtml(employeeInitials(employee))}</div>`}</div>
+<div class="body"><div class="details">${row('Name', employeeName(employee).toUpperCase(), 'name')}${row('Rank', employee.designation_name)}${row('ID', employee.employee_code)}${row('Blood Grp', employee.blood_group)}${row('D.O.B', employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined)}${row('Site', siteName)}</div>${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}">` : `<div class="photo-fallback">${escapeHtml(employeeInitials(employee) || 'ID')}</div>`}</div>
 <div class="address">${row('Address', employee.address)}</div>${signatureUrl ? `<div class="signature"><img src="${escapeHtml(signatureUrl)}"><div class="line"></div><small>Authorized Signatory</small></div>` : ''}</div></body></html>`;
 };
 
@@ -197,8 +188,7 @@ export default function EmployeeIdCard() {
   const { data: employee, error, isError, isLoading, refetch } = useItem<Employee>('employees', employeeId);
   const { data: assignments } = useList<Assignment>('assignments', {
     employee_id: employeeId,
-    status: 'Active',
-    limit: 1,
+    limit: 200,
   });
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ['settings'],
@@ -219,7 +209,11 @@ export default function EmployeeIdCard() {
   const companyPhone = settings?.company_phone;
   const logo = settings?.company_logo;
   const signature = settings?.company_signature;
-  const siteName = assignments?.[0]?.site_name;
+  const currentDate = today();
+  const siteName = assignments?.find(
+    (assignment) => assignment.start_date.slice(0, 10) <= currentDate
+      && (!assignment.end_date || assignment.end_date.slice(0, 10) >= currentDate),
+  )?.site_name;
   // Screen adds 16pt padding on each side. Scale the complete card uniformly when
   // that leaves less room than the fixed design canvas. This affects only preview;
   // PDF export is generated independently at the exact CR80 physical dimensions.
@@ -232,11 +226,26 @@ export default function EmployeeIdCard() {
     }
     setSharing(true);
     try {
+      // The PDF renderer cannot attach the app's Authorization header. Refresh
+      // immediately before printing so its embedded image URLs retain their
+      // full short-lived validity window, even if this screen stayed open.
+      const [{ data: printableEmployee }, { data: printableSettings }] = await Promise.all([
+        api.get<Employee>(`/employees/${employee.id}`),
+        api.get<Record<string, string>>('/settings'),
+      ]);
       const { uri } = await Print.printToFileAsync({
         width: PRINT_PAGE_WIDTH_POINTS,
         height: PRINT_PAGE_HEIGHT_POINTS,
         margins: { top: 0, right: 0, bottom: 0, left: 0 },
-        html: buildCardHtml({ employee, companyName, companyAddress, companyPhone, logo, signature, siteName }),
+        html: buildCardHtml({
+          employee: printableEmployee,
+          companyName: printableSettings.company_name || companyName,
+          companyAddress: printableSettings.company_address,
+          companyPhone: printableSettings.company_phone,
+          logo: printableSettings.company_logo,
+          signature: printableSettings.company_signature,
+          siteName,
+        }),
       });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
@@ -341,7 +350,7 @@ export default function EmployeeIdCard() {
             ) : (
               <View className="h-full w-full items-center justify-center bg-slate-100">
                 <CardText size={18} weight="semibold" className="text-slate-400">
-                  {employeeInitials(employee)}
+                  {employeeInitials(employee) || 'ID'}
                 </CardText>
               </View>
             )}

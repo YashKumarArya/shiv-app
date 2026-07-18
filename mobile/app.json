@@ -18,7 +18,7 @@
         "foregroundImage": "./logo-and-background/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -28,7 +28,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow access to photos to upload employee photos, documents and payment proofs."
+          "photosPermission": "Allow access to photos to upload employee photos, documents and payment proofs.",
+          "microphonePermission": false
         }
       ],
       "expo-asset",

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Switch, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ import { InfoRow } from '@/components/ui/InfoRow';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/providers/AuthProvider';
 import { notify } from '@/lib/notify';
+import { invalidateQueryRoots } from '@/lib/queryInvalidation';
 
 const schema = z.object({
   current_password: z.string().min(1, 'Required'),
@@ -41,7 +42,13 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const isAdmin = user?.role === 'admin';
 
-  const { data: settings } = useQuery<Record<string, string>>({
+  const {
+    data: settings,
+    error: settingsQueryError,
+    isError: settingsError,
+    isLoading: settingsLoading,
+    refetch: refetchSettings,
+  } = useQuery<Record<string, string>>({
     queryKey: ['settings'],
     queryFn: async () => (await api.get('/settings')).data,
     enabled: isAdmin,
@@ -51,8 +58,7 @@ export default function Settings() {
     mutationFn: (payload: { salary_exclude_sundays?: string; salary_off_days?: number }) =>
       api.put('/settings', payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['settings'] });
-      await queryClient.invalidateQueries({ queryKey: ['payments'] });
+      await invalidateQueryRoots(queryClient, ['settings', 'payments', 'dashboard']);
       notify('Salary setting updated', 'Payroll now uses the new off-days rule.');
     },
     onError: (error) => notify('Unable to update setting', errorMessage(error)),
@@ -78,8 +84,9 @@ export default function Settings() {
   };
 
   const companyForm = useForm<CompanyForm>({ defaultValues: companyDefaults });
+  const companyFormInitialized = useRef(false);
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || companyFormInitialized.current) return;
     companyForm.reset({
       company_name: settings.company_name ?? '',
       company_address: settings.company_address ?? '',
@@ -87,6 +94,7 @@ export default function Settings() {
       company_logo: settings.company_logo ?? '',
       company_signature: settings.company_signature ?? '',
     });
+    companyFormInitialized.current = true;
   }, [settings]);
 
   const saveCompany = useMutation({
@@ -115,8 +123,13 @@ export default function Settings() {
   });
 
   const onLogout = async () => {
-    await logout();
-    router.replace('/login');
+    try {
+      await logout();
+    } catch (error) {
+      notify('Local session cleanup failed', errorMessage(error));
+    } finally {
+      router.replace('/login');
+    }
   };
 
   const userInitials = user?.name
@@ -185,7 +198,19 @@ export default function Settings() {
         <Button title="Update Password" onPress={changePassword} loading={formState.isSubmitting} />
       </View>
 
-      {isAdmin ? (
+      {isAdmin && settingsLoading ? (
+        <View className="mt-7 rounded-2xl border border-slate-100 bg-white p-5">
+          <Text className="text-sm font-semibold text-slate-700">Loading salary and company settings…</Text>
+        </View>
+      ) : isAdmin && settingsError ? (
+        <View className="mt-7 rounded-2xl border border-red-100 bg-white p-5">
+          <Text className="font-semibold text-red-700">Couldn’t load admin settings</Text>
+          <Text className="mb-4 mt-1 text-xs leading-5 text-slate-500">
+            {errorMessage(settingsQueryError)}. Nothing can be overwritten until the current values load.
+          </Text>
+          <Button title="Retry" variant="secondary" onPress={() => void refetchSettings()} />
+        </View>
+      ) : isAdmin && settings ? (
         <>
           <View className="mb-2 mt-7 flex-row items-center px-1">
             <View className="h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">

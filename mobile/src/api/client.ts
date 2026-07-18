@@ -14,11 +14,13 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-/** Uploaded files are served from the API host, outside the /api prefix. */
+/** API records contain short-lived signed file paths served outside the /api prefix. */
 export const fileUrl = (path?: string | null) =>
   path ? baseURL.replace(/\/api$/, '') + path : undefined;
 
 export const errorMessage = (error: unknown) =>
   axios.isAxiosError(error)
     ? ((error.response?.data as { error?: string })?.error ?? error.message)
-    : 'Something went wrong';
+    : error instanceof Error
+      ? error.message
+      : 'Something went wrong';

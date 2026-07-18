@@ -31,13 +31,15 @@ const schema = z.object({
 const defaults = {
   photo: '', first_name: '', last_name: '', designation_id: '',
   phone: '', alternate_phone: '', email: '', aadhaar_number: '', blood_group: '',
-  date_of_birth: '', joining_date: today(), salary: '', address: '',
+  date_of_birth: '', joining_date: '', salary: '', address: '',
 };
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function EmployeeForm() {
-  const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm('employees', schema, defaults);
+  const { control, submit, saving, isEdit, formLoading, formError, retryForm } = useResourceForm(
+    'employees', schema, { ...defaults, joining_date: today() },
+  );
 
   return (
     <Screen
@@ -58,6 +60,7 @@ export default function EmployeeForm() {
         name="designation_id"
         label="Designation"
         resource="designations"
+        params={{ is_active: isEdit ? undefined : true }}
         getOption={(d) => ({ label: d.designation_name, value: d.id })}
       />
       <DateTimeField control={control} name="joining_date" label="Joining date" />

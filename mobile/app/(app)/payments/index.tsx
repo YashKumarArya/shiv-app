@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,59 +16,28 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api, errorMessage } from '@/api/client';
+import { api, errorMessage, fileUrl } from '@/api/client';
+import {
+  employeeInitials,
+  employeeName,
+  type SalaryTrackingEmployee,
+  type SalaryTrackingResponse,
+} from '@/api/types';
 import { SalaryHeroArtwork } from '@/components/SalaryHeroArtwork';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Screen } from '@/components/ui/Screen';
 import { depth } from '@/components/ui/depth';
-import { monthName } from '@/lib/format';
+import { formatCurrency, monthName } from '@/lib/format';
+import { notify } from '@/lib/notify';
+import { invalidateQueryRoots } from '@/lib/queryInvalidation';
+import { useAuth } from '@/providers/AuthProvider';
 
-type SalaryStatus = 'Paid' | 'Partial' | 'Due' | 'Advance' | 'Not Set';
+type SalaryStatus = 'Paid' | 'Partial' | 'Due' | 'Advance' | 'No Earnings' | 'Not Set';
 type StatusFilter = 'All' | SalaryStatus;
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-interface SalaryEmployee {
-  employee_id: number;
-  employee_code: string;
-  first_name: string;
-  last_name?: string | null;
-  designation_name?: string | null;
-  effective_salary: number;
-  worked_days: number;
-  payable_days: number;
-  per_day_rate: number;
-  due_amount: number;
-  paid_amount: number;
-  remaining_amount: number;
-  advance_amount: number;
-  status: SalaryStatus;
-  payment_count: number;
-  payment?: {
-    id: number;
-    payment_date?: string | null;
-    payment_mode?: string | null;
-  } | null;
-}
-
-interface SalaryTrackingResponse {
-  month: number;
-  year: number;
-  summary: {
-    total_payroll: number;
-    total_paid: number;
-    total_remaining: number;
-    total_advance: number;
-    paid_count: number;
-    partial_count: number;
-    due_count: number;
-    advance_count: number;
-    not_set_count: number;
-  };
-  employees: SalaryEmployee[];
-}
-
-const filters: StatusFilter[] = ['All', 'Due', 'Partial', 'Paid', 'Advance', 'Not Set'];
+const filters: StatusFilter[] = ['All', 'Due', 'Partial', 'Paid', 'Advance', 'No Earnings', 'Not Set'];
 
 const statusMeta: Record<SalaryStatus, {
   label: string;
@@ -91,29 +63,20 @@ const statusMeta: Record<SalaryStatus, {
     label: 'Advance paid', icon: 'trending-up', chip: 'bg-sky-50', text: 'text-sky-700',
     avatar: 'bg-sky-50', iconColor: '#0284c7',
   },
+  'No Earnings': {
+    label: 'No earnings', icon: 'remove-circle', chip: 'bg-slate-100', text: 'text-slate-600',
+    avatar: 'bg-slate-100', iconColor: '#64748b',
+  },
   'Not Set': {
     label: 'Salary not set', icon: 'alert-circle', chip: 'bg-rose-50', text: 'text-rose-700',
     avatar: 'bg-rose-50', iconColor: '#e11d48',
   },
 };
 
-const amount = (value: number | string | null | undefined) => {
-  const numericValue = Number(value ?? 0);
-  return `₹${new Intl.NumberFormat('en-IN', {
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(numericValue) ? numericValue : 0)}`;
-};
-
-const employeeName = (employee: SalaryEmployee) =>
-  [employee.first_name, employee.last_name].filter(Boolean).join(' ');
-
-const employeeInitials = (employee: SalaryEmployee) =>
-  [employee.first_name, employee.last_name]
-    .filter(Boolean)
-    .map((part) => part![0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+const displayStatus = (employee: SalaryTrackingEmployee): SalaryStatus =>
+  !employee.has_earnings && Number(employee.paid_amount ?? 0) <= 0 && employee.status !== 'Not Set'
+    ? 'No Earnings'
+    : employee.status;
 
 const previousMonth = (month: number, year: number) =>
   month === 1 ? { month: 12, year: year - 1 } : { month: month - 1, year };
@@ -137,6 +100,8 @@ const Metric = ({ label, value, accent }: { label: string; value: string; accent
 
 export default function SalaryTracking() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { employee_id: employeeId } = useLocalSearchParams<{ employee_id?: string }>();
   const current = new Date();
   const [period, setPeriod] = useState({ month: current.getMonth() + 1, year: current.getFullYear() });
@@ -159,39 +124,38 @@ export default function SalaryTracking() {
     [employeeId, employees],
   );
   const salarySummary = useMemo(() => {
-    if (!employeeId) return data?.summary ?? {
-      total_payroll: 0, total_paid: 0, total_remaining: 0, total_advance: 0,
-      paid_count: 0, partial_count: 0, due_count: 0, advance_count: 0, not_set_count: 0,
-    };
     return scopedEmployees.reduce((summary, employee) => {
       summary.total_payroll += Number(employee.due_amount ?? 0);
       summary.total_paid += Number(employee.paid_amount ?? 0);
       summary.total_remaining += Number(employee.remaining_amount ?? 0);
       summary.total_advance += Number(employee.advance_amount ?? 0);
-      if (employee.status === 'Paid') summary.paid_count += 1;
-      if (employee.status === 'Partial') summary.partial_count += 1;
-      if (employee.status === 'Due') summary.due_count += 1;
-      if (employee.status === 'Advance') summary.advance_count += 1;
-      if (employee.status === 'Not Set') summary.not_set_count += 1;
+      const status = displayStatus(employee);
+      if (status === 'Paid') summary.paid_count += 1;
+      if (status === 'Partial') summary.partial_count += 1;
+      if (status === 'Due') summary.due_count += 1;
+      if (status === 'Advance') summary.advance_count += 1;
+      if (status === 'No Earnings') summary.no_earnings_count += 1;
+      if (status === 'Not Set') summary.not_set_count += 1;
       return summary;
     }, {
       total_payroll: 0, total_paid: 0, total_remaining: 0, total_advance: 0,
-      paid_count: 0, partial_count: 0, due_count: 0, advance_count: 0, not_set_count: 0,
+      paid_count: 0, partial_count: 0, due_count: 0, advance_count: 0, no_earnings_count: 0, not_set_count: 0,
     });
-  }, [data?.summary, employeeId, scopedEmployees]);
+  }, [scopedEmployees]);
   const statusCounts: Record<StatusFilter, number> = {
     All: scopedEmployees.length,
     Paid: salarySummary.paid_count,
     Partial: salarySummary.partial_count,
     Due: salarySummary.due_count,
     Advance: salarySummary.advance_count,
+    'No Earnings': salarySummary.no_earnings_count,
     'Not Set': salarySummary.not_set_count,
   };
 
   const visibleEmployees = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
     return scopedEmployees.filter((employee) => {
-      if (filter !== 'All' && employee.status !== filter) return false;
+      if (filter !== 'All' && displayStatus(employee) !== filter) return false;
       if (!term) return true;
       return [employeeName(employee), employee.employee_code, employee.designation_name]
         .filter(Boolean)
@@ -199,7 +163,35 @@ export default function SalaryTracking() {
     });
   }, [filter, scopedEmployees, search]);
 
-  const openEmployee = (employee: SalaryEmployee) => {
+  const finalizePayroll = useMutation({
+    mutationFn: () => api.post('/payments/tracking/finalize', {
+      month: period.month,
+      year: period.year,
+      employee_id: employeeId ? Number(employeeId) : undefined,
+    }),
+    onSuccess: async () => {
+      await invalidateQueryRoots(queryClient, ['payments', 'dashboard']);
+      notify('Payroll finalized', `${monthName(period.month)} ${period.year} now uses an immutable payroll snapshot.`);
+    },
+    onError: (mutationError) => notify('Couldn’t finalize payroll', errorMessage(mutationError)),
+  });
+
+  const confirmFinalize = () => {
+    const proceed = () => finalizePayroll.mutate();
+    const message = data?.payroll_finalized
+      ? `Approve the existing immutable snapshot for ${monthName(period.month)} ${period.year}? This authorizes historical payment entries against it.`
+      : `Finalize ${monthName(period.month)} ${period.year}? Salary, designation, settings, attendance days, and earned payroll will be permanently snapshotted. Later attendance or salary edits will not change this payroll period.`;
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(message)) proceed();
+      return;
+    }
+    Alert.alert('Finalize payroll?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Finalize', style: 'destructive', onPress: proceed },
+    ]);
+  };
+
+  const openEmployee = (employee: SalaryTrackingEmployee) => {
     if (employee.status === 'Not Set') {
       router.push(`/employees/form?id=${employee.employee_id}` as Href);
       return;
@@ -207,12 +199,8 @@ export default function SalaryTracking() {
 
     const params = new URLSearchParams({
       employee_id: String(employee.employee_id),
-      employee_name: employeeName(employee),
       payment_month: String(period.month),
       payment_year: String(period.year),
-      payroll: String(employee.due_amount),
-      paid: String(employee.paid_amount),
-      remaining: String(employee.remaining_amount),
     });
     router.push(`/payments/history?${params.toString()}` as Href);
   };
@@ -241,7 +229,15 @@ export default function SalaryTracking() {
           <View className="flex-1 items-center px-2">
             <Text className="text-lg font-extrabold text-brand-900">{monthName(period.month)} {period.year}</Text>
             <Text className="mt-0.5 text-center text-xs font-semibold text-slate-500" numberOfLines={2}>
-              {isCurrentMonth ? 'Current team salary overview' : 'Calculated using current salary settings'}
+              {(data?.estimated_snapshot_count ?? 0) > 0
+                ? 'Frozen legacy estimate — pre-migration salary history was unavailable'
+                : data?.payroll_approved
+                  ? 'Admin-approved immutable payroll snapshot'
+                  : data?.payroll_finalized
+                    ? 'Immutable snapshot awaiting admin approval'
+                : isCurrentMonth
+                  ? 'Live payroll — attendance and salary changes still apply'
+                  : 'Unfinalized estimate — current salary and settings still apply'}
             </Text>
           </View>
 
@@ -259,6 +255,32 @@ export default function SalaryTracking() {
             <Ionicons name="chevron-forward" size={20} color={isCurrentMonth ? '#cbd5e1' : '#334155'} />
           </Pressable>
         </View>
+
+        {user?.role === 'admin' && data && !data.payroll_approved && !isLoading ? (
+          <View className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center">
+              <Ionicons name="warning-outline" size={18} color="#b45309" />
+              <Text className="ml-2 flex-1 text-xs font-semibold leading-4 text-amber-800">
+                {data.payroll_finalized
+                  ? 'This immutable snapshot still needs administrator approval.'
+                  : 'Finalizing locks this period’s payroll basis permanently.'}
+              </Text>
+              <Pressable
+                onPress={confirmFinalize}
+                disabled={finalizePayroll.isPending}
+                accessibilityRole="button"
+                accessibilityLabel={`Finalize payroll for ${monthName(period.month)} ${period.year}`}
+                className="min-h-10 justify-center rounded-xl bg-amber-600 px-3 active:bg-amber-700"
+              >
+                {finalizePayroll.isPending ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-xs font-extrabold text-white">Finalize</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {isLoading ? (
           <View className="items-center pt-24">
@@ -311,12 +333,12 @@ export default function SalaryTracking() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.65}
                   >
-                    {amount(salarySummary.total_remaining)}
+                    {formatCurrency(salarySummary.total_remaining)}
                   </Text>
 
                   <View className="mt-5 flex-row gap-3">
-                    <Metric label="Paid" value={amount(salarySummary.total_paid)} accent="text-emerald-300" />
-                    <Metric label="Payroll" value={amount(salarySummary.total_payroll)} accent="text-white" />
+                    <Metric label="Paid" value={formatCurrency(salarySummary.total_paid)} accent="text-emerald-300" />
+                    <Metric label="Payroll" value={formatCurrency(salarySummary.total_payroll)} accent="text-white" />
                   </View>
                 </View>
               </View>
@@ -379,7 +401,8 @@ export default function SalaryTracking() {
                   </View>
 
                   {visibleEmployees.map((employee, index) => {
-                    const meta = statusMeta[employee.status];
+                    const status = displayStatus(employee);
+                    const meta = statusMeta[status];
                     const paid = Number(employee.paid_amount ?? 0);
                     const earned = Number(employee.due_amount ?? 0);
                     const progress = earned > 0 ? Math.min(100, Math.max(0, (paid / earned) * 100)) : 0;
@@ -388,13 +411,26 @@ export default function SalaryTracking() {
                         key={employee.employee_id}
                         onPress={() => openEmployee(employee)}
                         accessibilityRole="button"
-                        accessibilityLabel={`${employeeName(employee)}, ${meta.label}, ${amount(employee.paid_amount)} paid of ${amount(employee.due_amount)} earned`}
-                        accessibilityHint={employee.status === 'Not Set' ? 'Opens employee salary setup' : 'Opens payment history and installment actions'}
+                        accessibilityLabel={`${employeeName(employee)}, ${meta.label}, ${formatCurrency(employee.paid_amount)} paid of ${formatCurrency(employee.due_amount)} earned`}
+                        accessibilityHint={status === 'Not Set' ? 'Opens employee salary setup' : 'Opens payment history and installment actions'}
                         className={`p-4 active:bg-slate-50 ${index < visibleEmployees.length - 1 ? 'border-b border-slate-100' : ''}`}
                       >
                         <View className="flex-row items-center">
-                          <View className={`h-12 w-12 items-center justify-center rounded-2xl ${meta.avatar}`}>
-                            <Text className="text-sm font-extrabold text-slate-700">{employeeInitials(employee)}</Text>
+                          <View
+                            className={`h-12 w-12 items-center justify-center overflow-hidden rounded-2xl ${
+                              employee.photo ? 'bg-slate-100' : meta.avatar
+                            }`}
+                          >
+                            {employee.photo ? (
+                              <Image
+                                source={{ uri: fileUrl(employee.photo) }}
+                                resizeMode="cover"
+                                style={StyleSheet.absoluteFillObject}
+                                accessibilityLabel={`${employeeName(employee)} profile photo`}
+                              />
+                            ) : (
+                              <Text className="text-sm font-extrabold text-slate-700">{employeeInitials(employee)}</Text>
+                            )}
                           </View>
 
                           <View className="ml-3 flex-1 pr-2">
@@ -413,7 +449,7 @@ export default function SalaryTracking() {
                           <Ionicons name="chevron-forward" size={16} color="#b0bccb" style={{ marginLeft: 7 }} />
                         </View>
 
-                        {employee.status === 'Not Set' ? (
+                        {status === 'Not Set' ? (
                           <View className="ml-[60px] mt-3 flex-row items-center rounded-xl bg-rose-50 px-3 py-2.5">
                             <Ionicons name="information-circle-outline" size={17} color="#e11d48" />
                             <Text className="ml-2 flex-1 text-xs font-bold text-rose-700">Set a monthly salary to start tracking</Text>
@@ -426,7 +462,7 @@ export default function SalaryTracking() {
                                   PAID / EARNED · {employee.payment_count ?? 0} {(employee.payment_count ?? 0) === 1 ? 'PAYMENT' : 'PAYMENTS'}
                                 </Text>
                                 <Text className="mt-0.5 text-sm font-extrabold text-slate-800">
-                                  {amount(employee.paid_amount)} <Text className="font-semibold text-slate-400">/ {amount(employee.due_amount)}</Text>
+                                  {formatCurrency(employee.paid_amount)} <Text className="font-semibold text-slate-400">/ {formatCurrency(employee.due_amount)}</Text>
                                 </Text>
                               </View>
                               <View className="items-end">
@@ -442,21 +478,21 @@ export default function SalaryTracking() {
                                         : 'text-emerald-600'
                                   }`}
                                 >
-                                  {amount(employee.advance_amount > 0 ? employee.advance_amount : employee.remaining_amount)}
+                                  {formatCurrency(employee.advance_amount > 0 ? employee.advance_amount : employee.remaining_amount)}
                                 </Text>
                               </View>
                             </View>
                             <View className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
                               <View
                                 className={`h-full rounded-full ${
-                                  employee.status === 'Paid' ? 'bg-emerald-500' : employee.status === 'Advance' ? 'bg-sky-500' : 'bg-violet-500'
+                                  status === 'Paid' ? 'bg-emerald-500' : status === 'Advance' ? 'bg-sky-500' : 'bg-violet-500'
                                 }`}
                                 style={{ width: `${progress}%` }}
                               />
                             </View>
                             <Text className="mt-1.5 text-[11px] font-medium text-slate-400">
                               Worked {employee.worked_days} of {employee.payable_days} payable days ·{' '}
-                              {amount(employee.per_day_rate)}/day
+                              {formatCurrency(employee.per_day_rate)}/day
                             </Text>
                           </View>
                         )}

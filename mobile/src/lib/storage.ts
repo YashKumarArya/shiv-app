@@ -1,8 +1,14 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+interface LocalStorageLike {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+}
+
 // SecureStore has no web implementation; fall back to localStorage there.
-const local = (globalThis as any).localStorage;
+const local = (globalThis as typeof globalThis & { localStorage?: LocalStorageLike }).localStorage;
 
 export const storage =
   Platform.OS === 'web'

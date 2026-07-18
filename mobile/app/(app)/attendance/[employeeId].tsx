@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, errorMessage } from '@/api/client';
+import { employeeInitials, employeeName } from '@/api/types';
 import { Badge } from '@/components/ui/Badge';
 import { depth } from '@/components/ui/depth';
 import { Screen } from '@/components/ui/Screen';
@@ -135,17 +136,6 @@ const formatTime = (value?: string | null) => {
     : date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 };
 
-const employeeName = (employee: CalendarResponse['employee']) =>
-  [employee.first_name, employee.last_name].filter(Boolean).join(' ');
-
-const initials = (employee: CalendarResponse['employee']) =>
-  [employee.first_name, employee.last_name]
-    .filter(Boolean)
-    .map((part) => part?.charAt(0))
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
 export default function EmployeeAttendanceCalendar() {
   const { employeeId: rawEmployeeId } = useLocalSearchParams<{ employeeId?: string | string[] }>();
   const employeeId = Array.isArray(rawEmployeeId) ? rawEmployeeId[0] : rawEmployeeId;
@@ -240,7 +230,7 @@ export default function EmployeeAttendanceCalendar() {
           <View style={depth.raised} className="rounded-3xl border border-white/80 bg-white p-4">
             <View className="flex-row items-center">
               <View className="h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50">
-                <Text className="text-lg font-extrabold text-indigo-700">{initials(data.employee) || '—'}</Text>
+                  <Text className="text-lg font-extrabold text-indigo-700">{employeeInitials(data.employee) || '—'}</Text>
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-lg font-extrabold text-slate-900" numberOfLines={1}>{name}</Text>

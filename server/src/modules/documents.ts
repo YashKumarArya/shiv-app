@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { crudRouter } from '../lib/crud.js';
 import { id } from '../lib/fields.js';
+import { uploadReference } from '../lib/uploads.js';
 
 const schema = z.object({
   employee_id: id,
   document_type: z.string().min(1),
   document_number: z.string().nullable().optional(),
-  document_file: z.string().min(1),
+  document_file: uploadReference,
 });
 
 export default crudRouter({

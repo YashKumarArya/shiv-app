@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, errorMessage, fileUrl } from '@/api/client';
-import { employeeName } from '@/api/types';
+import { employeeInitials, employeeName } from '@/api/types';
 import { DateStepper } from '@/components/DateStepper';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -25,6 +25,7 @@ import { Screen } from '@/components/ui/Screen';
 import { formatDate, today } from '@/lib/format';
 import { confirmAction } from '@/lib/confirm';
 import { notify } from '@/lib/notify';
+import { invalidateResourceQueries } from '@/lib/queryInvalidation';
 
 type Status = 'Present' | 'Absent' | 'Half Day' | 'Leave';
 
@@ -88,21 +89,13 @@ interface RosterRow {
   worked_days: number;
 }
 
-const initials = (row: RosterRow) =>
-  [row.first_name, row.last_name]
-    .filter(Boolean)
-    .map((part) => part![0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
 export default function AttendanceTab() {
   const router = useRouter();
   const [date, setDate] = useState(today());
   const [selectedRow, setSelectedRow] = useState<RosterRow | null>(null);
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['attendance'] });
+  const invalidate = () => invalidateResourceQueries(queryClient, 'attendance');
   const onError = (error: unknown) => notify('Failed to mark attendance', errorMessage(error));
 
   const { data, isError, isLoading, isRefetching, refetch } = useQuery<RosterRow[]>({
@@ -275,7 +268,7 @@ export default function AttendanceTab() {
                           className="h-11 w-11 items-center justify-center rounded-xl bg-indigo-50"
                           accessible={false}
                         >
-                          <Text className="text-sm font-bold text-indigo-700">{initials(row)}</Text>
+                          <Text className="text-sm font-bold text-indigo-700">{employeeInitials(row)}</Text>
                         </View>
                       )}
 

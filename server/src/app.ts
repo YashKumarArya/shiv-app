@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error.js';
+import { signedUploads } from './modules/uploads.js';
 import { routes } from './routes.js';
 
 export const createApp = () => {
@@ -11,7 +12,7 @@ export const createApp = () => {
   const app = express();
   app.use(cors());
   app.use(express.json());
-  app.use('/uploads', express.static(env.uploadDir));
+  app.use('/uploads', signedUploads);
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.use('/api', routes);
   app.use(errorHandler);

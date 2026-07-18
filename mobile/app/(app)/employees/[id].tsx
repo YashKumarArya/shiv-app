@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { ActivityIndicator, Image, Linking, Pressable, Text, View } from 'react-native';
 import { errorMessage, fileUrl } from '@/api/client';
-import { employeeName, type Employee } from '@/api/types';
+import { employeeInitials, employeeName, type Employee } from '@/api/types';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { InfoRow } from '@/components/ui/InfoRow';
@@ -65,14 +65,6 @@ const recordGroups = [
   },
 ] as const;
 
-const initials = (employee: Employee) =>
-  [employee.first_name, employee.last_name]
-    .filter(Boolean)
-    .map((name) => name?.charAt(0))
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
 export default function EmployeeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -98,7 +90,10 @@ export default function EmployeeDetail() {
       message: `${employeeName(employee)} will become ${next}.`,
       confirmText: 'Confirm',
       destructive: next === 'Inactive',
-      onConfirm: () => save.mutate({ id, status: next }),
+      onConfirm: () => save.mutate(
+        { id, status: next },
+        { onError: (mutationError) => notify('Couldn’t update employee status', errorMessage(mutationError)) },
+      ),
     });
   };
 
@@ -128,7 +123,7 @@ export default function EmployeeDetail() {
             />
           ) : (
             <View className="h-24 w-24 items-center justify-center rounded-3xl border-2 border-white bg-brand-50 shadow-sm">
-              <Text className="text-3xl font-bold text-brand-700">{initials(employee) || '—'}</Text>
+              <Text className="text-3xl font-bold text-brand-700">{employeeInitials(employee) || '—'}</Text>
             </View>
           )}
           <Text className="mt-4 text-center text-2xl font-bold text-slate-900">{employeeName(employee)}</Text>
