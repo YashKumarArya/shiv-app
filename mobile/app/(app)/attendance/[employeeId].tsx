@@ -374,9 +374,14 @@ export default function EmployeeAttendanceCalendar() {
           />
           <View
             accessibilityViewIsModal
-            className="rounded-t-3xl border border-white/80 bg-white px-4 pt-3"
-            style={[depth.chrome, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            className="rounded-t-3xl border border-white/80 bg-white"
+            style={[depth.chrome, { maxHeight: '85%', paddingBottom: Math.max(insets.bottom, 16) }]}
           >
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerClassName="px-4 pt-3"
+            >
             <View className="mb-3 h-1 w-10 self-center rounded-full bg-slate-300" />
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-3">
@@ -420,6 +425,7 @@ export default function EmployeeAttendanceCalendar() {
                 </View>
               </>
             ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -240,7 +241,7 @@ export default function Settings() {
               <Text className="mt-0.5 text-xs text-slate-500">
                 Additional non-working days per month, on top of Sundays if excluded
               </Text>
-              <View className="mt-3 flex-row items-center gap-2">
+              <View className="mt-3 flex-row flex-wrap items-center gap-2">
                 <TextInput
                   value={String(extraDaysInput)}
                   onChangeText={setExtraDaysInput}
@@ -249,13 +250,15 @@ export default function Settings() {
                   placeholderTextColor="#94a3b8"
                   className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-sm font-semibold text-slate-800"
                 />
-                <Text className="flex-1 text-xs text-slate-500">days / month</Text>
-                <Button
-                  title="Apply"
-                  onPress={applyExtraDays}
-                  loading={saveSalarySettings.isPending}
-                  variant="secondary"
-                />
+                <Text className="min-w-[76px] flex-1 text-xs text-slate-500">days / month</Text>
+                <View className="min-w-[92px] flex-1">
+                  <Button
+                    title="Apply"
+                    onPress={applyExtraDays}
+                    loading={saveSalarySettings.isPending}
+                    variant="secondary"
+                  />
+                </View>
               </View>
             </View>
           </View>
@@ -318,6 +321,10 @@ export default function Settings() {
         </View>
         <Button title="Log Out" variant="danger" onPress={onLogout} />
       </View>
+      <Text className="mt-5 text-center text-[11px] font-medium text-slate-400">
+        Version {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? '—'}
+        {Constants.nativeBuildVersion ? ` · Build ${Constants.nativeBuildVersion}` : ''}
+      </Text>
     </Screen>
   );
 }

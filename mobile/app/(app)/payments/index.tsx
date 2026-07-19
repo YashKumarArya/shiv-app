@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ComponentProps } from 'react';
 import { useMemo, useState } from 'react';
 import {
@@ -100,6 +101,7 @@ const Metric = ({ label, value, accent }: { label: string; value: string; accent
 
 export default function SalaryTracking() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { employee_id: employeeId } = useLocalSearchParams<{ employee_id?: string }>();
@@ -210,7 +212,7 @@ export default function SalaryTracking() {
       <Stack.Screen options={{ title: 'Salary Tracker' }} />
       <ScrollView
         className="flex-1 bg-transparent"
-        contentContainerClassName="pb-12"
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 24, 48) }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#2457d6" />}

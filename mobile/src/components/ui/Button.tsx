@@ -34,9 +34,9 @@ export const Button = ({ title, onPress, variant = 'primary', loading, disabled,
       {loading ? (
         <ActivityIndicator color={iconColor} />
       ) : (
-        <View className="flex-row items-center gap-2">
+        <View className="min-w-0 flex-row items-center justify-center gap-2">
           {icon ? <Ionicons name={icon} size={18} color={iconColor} /> : null}
-          <Text className={`text-[15px] font-bold ${text}`}>{title}</Text>
+          <Text className={`shrink text-center text-[15px] font-bold ${text}`}>{title}</Text>
         </View>
       )}
     </Pressable>

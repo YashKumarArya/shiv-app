@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useIsMutating } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm, type DefaultValues, type FieldValues } from 'react-hook-form';
+import { Alert, Platform } from 'react-native';
 import type { ZodSchema } from 'zod';
 import { errorMessage } from '@/api/client';
 import { useItem, useSave } from './useCrud';
@@ -27,6 +28,8 @@ export function useResourceForm(
 ) {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
+  const allowLeave = useRef(false);
   const item = useItem<Record<string, unknown>>(resource, id);
   const { data } = item;
   const save = useSave(resource);
@@ -34,13 +37,45 @@ export function useResourceForm(
     resolver: zodResolver(schema),
     defaultValues: defaults as DefaultValues<FieldValues>,
   });
-  const { dirtyFields } = form.formState;
+  const { dirtyFields, isDirty } = form.formState;
   const uploading = useIsMutating({ mutationKey: ['upload'] }) > 0;
 
   useEffect(() => {
-    if (!data) return;
+    // A cached record may render before a fresh network response. Never let that
+    // background response erase values the user has already started editing.
+    if (!data || isDirty) return;
     form.reset(Object.fromEntries(Object.keys(defaults).map((key) => [key, normalize(data[key])])));
-  }, [data]);
+  }, [data, isDirty]);
+
+  useEffect(() => {
+    const pending = save.isPending || uploading;
+    if (!isDirty && !pending) return;
+
+    return navigation.addListener('beforeRemove', (event) => {
+      if (allowLeave.current) return;
+      event.preventDefault();
+      // A photo upload or server save must finish before this screen unmounts;
+      // otherwise its success callback could update a form that no longer exists.
+      if (pending) return;
+
+      const discard = () => {
+        allowLeave.current = true;
+        navigation.dispatch(event.data.action);
+      };
+      if (Platform.OS === 'web') {
+        if (globalThis.confirm('Discard your unsaved changes?')) discard();
+        return;
+      }
+      Alert.alert(
+        'Discard changes?',
+        'The information entered on this form has not been saved.',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: discard },
+        ],
+      );
+    });
+  }, [isDirty, navigation, save.isPending, uploading]);
 
   const submit = form.handleSubmit(async (values) => {
     const rawValues = form.getValues();
@@ -58,6 +93,7 @@ export function useResourceForm(
         return;
       }
       await save.mutateAsync({ id, ...body });
+      allowLeave.current = true;
       router.back();
     } catch (error) {
       notify('Save failed', errorMessage(error));

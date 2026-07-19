@@ -59,6 +59,14 @@ export const Screen = ({
       <Container className={`flex-1 bg-transparent ${className}`}>
         <AppBackground variant={backgroundVariant} />
         {children}
+        {footer ? (
+          <View
+            className="border-t border-slate-200 bg-white/95 px-4 pt-3"
+            style={[depth.chrome, { paddingBottom: Math.max(insets.bottom, 12) }]}
+          >
+            {footer}
+          </View>
+        ) : null}
       </Container>
     );
   }

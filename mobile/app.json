@@ -2,20 +2,22 @@
   "expo": {
     "name": "LayManagement",
     "slug": "shivapp",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "shivapp",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "icon": "./logo-and-background/logo.png",
+    "icon": "./logo-and-background/icon.png",
     "ios": {
       "supportsTablet": false
     },
     "android": {
       "package": "com.shivapp.agency",
+      "versionCode": 2,
+      "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./logo-and-background/logo.png",
+        "foregroundImage": "./logo-and-background/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "blockedPermissions": [
@@ -37,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./logo-and-background/logo.png",
+          "image": "./logo-and-background/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"

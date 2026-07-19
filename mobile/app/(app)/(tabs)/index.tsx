@@ -54,6 +54,8 @@ export default function Dashboard() {
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
     queryFn: async () => (await api.get('/dashboard')).data,
+    // Counts here change as staff use the app, so refresh this screen sooner.
+    staleTime: 30_000,
   });
 
   const active = data?.active_employees ?? 0;
@@ -93,7 +95,7 @@ export default function Dashboard() {
       ) : (
         <>
           <View className="mb-5 flex-row items-center justify-between">
-            <View>
+            <View className="min-w-0 flex-1 pr-3">
               <Text className="text-xs font-bold uppercase tracking-[1.2px] text-brand-600">{dateLabel}</Text>
               <Text className="mt-1 text-[26px] font-extrabold tracking-tight text-brand-900">Good day, {firstName}</Text>
             </View>
@@ -102,7 +104,7 @@ export default function Dashboard() {
               accessibilityRole="button"
               accessibilityLabel="Open settings"
               style={depth.subtle}
-              className="h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-brand-100"
+              className="h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-brand-100"
             >
               <Text className="text-base font-extrabold text-brand-700">{initial}</Text>
             </Pressable>

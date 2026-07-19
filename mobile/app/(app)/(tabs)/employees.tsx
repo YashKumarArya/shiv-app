@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Image, Pressable, Text, View } from 'react-native';
 import { fileUrl } from '@/api/client';
 import { employeeName, type Employee } from '@/api/types';
@@ -43,11 +45,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 }
 
 export default function Employees() {
+  const router = useRouter();
   const [status, setStatus] = useState<'All' | Employee['status']>('All');
 
   return (
     <Screen>
-      <View className="flex-row gap-2 px-4 pt-3">
+      <View className="flex-row flex-wrap gap-2 px-4 pt-3">
         {(['All', 'Active', 'Inactive'] as const).map((option) => {
           const selected = status === option;
           return (
@@ -65,6 +68,17 @@ export default function Employees() {
             </Pressable>
           );
         })}
+      </View>
+      <View className="items-end px-4 pt-2">
+        <Pressable
+          onPress={() => router.push('/employees/id-card-sheet')}
+          accessibilityRole="button"
+          accessibilityLabel="Select and print multiple employee ID cards"
+          className="min-h-11 flex-row items-center justify-center rounded-xl px-3 active:bg-brand-50"
+        >
+          <Ionicons name="print-outline" size={17} color="#2457d6" />
+          <Text className="ml-1.5 text-sm font-bold text-brand-600">Print ID cards</Text>
+        </Pressable>
       </View>
       <ResourceList<Employee>
         resource="employees"

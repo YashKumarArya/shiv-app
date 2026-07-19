@@ -11,7 +11,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
 import * as Print from 'expo-print';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import {
   ActivityIndicator,
@@ -43,6 +43,12 @@ import {
   useList,
 } from '@/hooks/useCrud';
 import { formatDate, today } from '@/lib/format';
+import {
+  A4_HEIGHT_POINTS,
+  A4_WIDTH_POINTS,
+  buildA4IdCardSheetHtml,
+  embedIdCardImages,
+} from '@/lib/idCardPrint';
 import { notify } from '@/lib/notify';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -54,14 +60,6 @@ import { useQuery } from '@tanstack/react-query';
 // address); the text is fixed-pixel, so the box must be tall enough for it.
 const CARD_WIDTH = 360;
 const CARD_HEIGHT = 227;
-// A fixed output size is the important part of the export contract. Native view
-// dimensions are density-independent points; without these values the PNG uses
-// each device's physical pixel density and therefore differs between devices.
-const PRINT_PAGE_WIDTH_MM = 91.6; // 85.6mm card + 3mm cutting margin on each side.
-const PRINT_PAGE_WIDTH_POINTS = (PRINT_PAGE_WIDTH_MM / 25.4) * 72;
-const PRINT_PAGE_HEIGHT_MM = 59.98; // 53.98mm card + 3mm cutting margin above and below.
-const PRINT_PAGE_HEIGHT_POINTS = (PRINT_PAGE_HEIGHT_MM / 25.4) * 72;
-
 // Card text should lay out consistently on every device, so CardText pins down
 // the platform-dependent text properties we can control:
 //   - allowFontScaling={false}: ignore the OS "Font size / Display size" setting
@@ -103,42 +101,6 @@ const CardText = ({ size, weight = 'regular', lineHeight, style, ...props }: Car
   />
 );
 
-const escapeHtml = (value?: string | null) => (value ?? '')
-  .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-
-interface CardHtmlData {
-  employee: Employee;
-  companyName: string;
-  companyAddress?: string;
-  companyPhone?: string;
-  logo?: string;
-  signature?: string;
-  siteName?: string;
-}
-
-const buildCardHtml = ({ employee, companyName, companyAddress, companyPhone, logo, signature, siteName }: CardHtmlData) => {
-  const row = (label: string, value?: string | null, className = '') => value
-    ? `<div class="row ${className}"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`
-    : '';
-  const logoUrl = fileUrl(logo);
-  const photoUrl = fileUrl(employee.photo);
-  const signatureUrl = fileUrl(signature);
-
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-@page{size:91.6mm 59.98mm;margin:0}*{box-sizing:border-box}html,body{width:91.6mm;height:59.98mm;margin:0;overflow:hidden}body{position:relative;font-family:Arial,sans-serif;color:#1e293b;background:#fff}
-.card{position:absolute;left:3mm;top:3mm;width:85.6mm;height:53.98mm;padding:3mm;background:#fff;overflow:hidden;border:.3mm solid #cbd5e1;border-radius:3mm;break-inside:avoid;page-break-inside:avoid}.watermark{position:absolute;inset:7mm 18mm;width:49.6mm;height:39.98mm;object-fit:contain;opacity:.07}
-.header{position:relative;display:flex;align-items:center;justify-content:center;min-height:11mm}.logo,.logo-fallback{width:10mm;height:10mm;border-radius:1.5mm}.logo{object-fit:contain}.logo-fallback{display:flex;align-items:center;justify-content:center;background:#eef4ff;color:#2457d6;font-size:4mm;font-weight:700}
-.company{max-width:58mm;margin-left:2mm;text-align:center}.company h1{margin:0;font-size:3.5mm;line-height:4mm;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.company p{margin:.2mm 0 0;color:#64748b;font-size:2mm;line-height:2.5mm}
-.body{position:relative;display:flex;margin-top:1.5mm}.details{flex:1;padding-right:2mm}.row{display:flex;align-items:flex-start;line-height:3.1mm}.row span{width:17mm;flex:none;color:#94a3b8;font-size:1.8mm;font-weight:700;letter-spacing:.12mm;text-transform:uppercase}.row b{flex:1;font-size:2.35mm;font-weight:600}.row.name{margin-bottom:.5mm;line-height:4.5mm}.row.name b{font-size:3.6mm;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.photo,.photo-fallback{width:15.2mm;height:17.6mm;border-radius:1mm}.photo{display:block;object-fit:cover}.photo-fallback{display:flex;align-items:center;justify-content:center;border:.25mm solid #cbd5e1;background:#f1f5f9;color:#94a3b8;font-size:4mm;font-weight:700}.address{margin-top:.5mm;padding-right:${signature ? '22mm' : '0'}}.address b{font-size:2mm;line-height:2.7mm}
-.signature{position:absolute;right:1.5mm;bottom:2mm;width:22mm;text-align:center}.signature img{display:block;width:20mm;height:7mm;margin:auto;object-fit:contain}.signature .line{width:20mm;border-top:.2mm solid #94a3b8;margin:auto}.signature small{display:block;margin-top:.4mm;color:#64748b;font-size:1.55mm;line-height:2mm;font-weight:700;white-space:nowrap}
-</style></head><body><div class="card">${logoUrl ? `<img class="watermark" src="${escapeHtml(logoUrl)}">` : ''}
-<div class="header">${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}">` : '<div class="logo-fallback">ID</div>'}<div class="company"><h1>${escapeHtml(companyName)}</h1>${companyAddress ? `<p>${escapeHtml(companyAddress)}</p>` : ''}${companyPhone ? `<p>Ph: ${escapeHtml(companyPhone)}</p>` : ''}</div></div>
-<div class="body"><div class="details">${row('Name', employeeName(employee).toUpperCase(), 'name')}${row('Rank', employee.designation_name)}${row('ID', employee.employee_code)}${row('Blood Grp', employee.blood_group)}${row('D.O.B', employee.date_of_birth ? formatDate(employee.date_of_birth) : undefined)}${row('Site', siteName)}</div>${photoUrl ? `<img class="photo" src="${escapeHtml(photoUrl)}">` : `<div class="photo-fallback">${escapeHtml(employeeInitials(employee) || 'ID')}</div>`}</div>
-<div class="address">${row('Address', employee.address)}</div>${signatureUrl ? `<div class="signature"><img src="${escapeHtml(signatureUrl)}"><div class="line"></div><small>Authorized Signatory</small></div>` : ''}</div></body></html>`;
-};
-
 interface IdRowProps {
   label: string;
   value?: string | null;
@@ -174,8 +136,9 @@ const IdRow = ({ label, value, bold, large, numberOfLines, multiline, valueStyle
 
 export default function EmployeeIdCard() {
   const { employee_id: employeeId } = useLocalSearchParams<{ employee_id: string }>();
+  const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
-  const [sharing, setSharing] = useState(false);
+  const [pdfAction, setPdfAction] = useState<'print' | 'share' | null>(null);
   // Wait for the bundled card font before rendering — capturing with the fallback
   // system font would reintroduce the per-device layout differences.
   const [fontsLoaded] = useFonts({
@@ -219,12 +182,12 @@ export default function EmployeeIdCard() {
   // PDF export is generated independently at the exact CR80 physical dimensions.
   const previewScale = Math.min(1, (screenWidth - 32) / CARD_WIDTH);
 
-  const shareCard = async () => {
+  const handlePdf = async (action: 'print' | 'share') => {
     if (Platform.OS === 'web') {
-      notify('Not available on web', 'Open this screen on a phone to save or share the ID card.');
+      notify('Not available on web', 'Open this screen on a phone to print, save or share the ID card.');
       return;
     }
-    setSharing(true);
+    setPdfAction(action);
     try {
       // The PDF renderer cannot attach the app's Authorization header. Refresh
       // immediately before printing so its embedded image URLs retain their
@@ -233,21 +196,24 @@ export default function EmployeeIdCard() {
         api.get<Employee>(`/employees/${employee.id}`),
         api.get<Record<string, string>>('/settings'),
       ]);
+      const cards = await embedIdCardImages([{
+        employee: printableEmployee,
+        companyName: printableSettings.company_name || companyName,
+        companyAddress: printableSettings.company_address,
+        companyPhone: printableSettings.company_phone,
+        logo: printableSettings.company_logo,
+        signature: printableSettings.company_signature,
+        siteName,
+      }]);
       const { uri } = await Print.printToFileAsync({
-        width: PRINT_PAGE_WIDTH_POINTS,
-        height: PRINT_PAGE_HEIGHT_POINTS,
+        width: A4_WIDTH_POINTS,
+        height: A4_HEIGHT_POINTS,
         margins: { top: 0, right: 0, bottom: 0, left: 0 },
-        html: buildCardHtml({
-          employee: printableEmployee,
-          companyName: printableSettings.company_name || companyName,
-          companyAddress: printableSettings.company_address,
-          companyPhone: printableSettings.company_phone,
-          logo: printableSettings.company_logo,
-          signature: printableSettings.company_signature,
-          siteName,
-        }),
+        html: buildA4IdCardSheetHtml(cards),
       });
-      if (await Sharing.isAvailableAsync()) {
+      if (action === 'print') {
+        await Print.printAsync({ uri });
+      } else if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
           dialogTitle: `${employeeName(employee)} — ID Card`,
@@ -255,10 +221,10 @@ export default function EmployeeIdCard() {
       } else {
         notify('Sharing unavailable', 'This device cannot share files.');
       }
-    } catch (shareError) {
-      notify('Couldn’t export ID card', errorMessage(shareError));
+    } catch (pdfError) {
+      notify(action === 'print' ? 'Couldn’t print ID card' : 'Couldn’t export ID card', errorMessage(pdfError));
     } finally {
-      setSharing(false);
+      setPdfAction(null);
     }
   };
 
@@ -389,7 +355,34 @@ export default function EmployeeIdCard() {
       </View>
 
       <View className="mt-6 w-full max-w-[440px]">
-        <Button title="Share / Save Print-ready PDF" icon="share-social-outline" onPress={shareCard} loading={sharing} />
+        <Button
+          title="Print now"
+          icon="print-outline"
+          onPress={() => void handlePdf('print')}
+          loading={pdfAction === 'print'}
+          disabled={pdfAction !== null}
+        />
+        <View className="mt-3">
+          <Button
+            title="Save / share A4 PDF"
+            icon="share-social-outline"
+            variant="secondary"
+            onPress={() => void handlePdf('share')}
+            loading={pdfAction === 'share'}
+            disabled={pdfAction !== null}
+          />
+        </View>
+        <View className="mt-3">
+          <Button
+            title="Export multiple ID cards"
+            icon="albums-outline"
+            variant="secondary"
+            onPress={() => router.push('/employees/id-card-sheet')}
+          />
+        </View>
+        <Text className="mt-3 px-2 text-center text-xs leading-5 text-slate-500">
+          Cards export at the real CR80 size: 85.60 × 53.98 mm. When printing, choose A4 and Actual size or 100%.
+        </Text>
       </View>
 
       {!logo || !settings?.company_name ? (

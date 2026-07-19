@@ -31,8 +31,8 @@ export const ListCard = ({
       className="mb-3 min-h-[76px] flex-row items-center rounded-2xl border border-slate-200 bg-white p-3.5 active:bg-slate-50"
     >
       {leading ? <View className="mr-3">{leading}</View> : null}
-      <View className="flex-1 pr-2">
-        <Text className="text-[15px] font-bold text-slate-800" numberOfLines={1}>{title}</Text>
+      <View className="min-w-0 flex-1 pr-2">
+        <Text className="text-[15px] font-bold text-slate-800" numberOfLines={2}>{title}</Text>
         {subtitle ? <Text className="mt-1 text-[13px] leading-[18px] text-slate-500" numberOfLines={2}>{subtitle}</Text> : null}
       </View>
       {right ?? (badge ? <Badge label={badge} /> : null)}

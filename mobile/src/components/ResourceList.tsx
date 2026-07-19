@@ -26,7 +26,7 @@ export function ResourceList<T extends { id: number }>({
 }: Props<T>) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
-  const { data, isLoading, isError, error, isRefetching, refetch } = useList<T>(resource, {
+  const { data, isLoading, isError, error, isRefetching, refetch, fetchStatus } = useList<T>(resource, {
     ...params,
     search: debouncedSearch || undefined,
     limit: 200,
@@ -36,7 +36,15 @@ export function ResourceList<T extends { id: number }>({
     <View className="flex-1">
       {searchable && <SearchBar value={search} onChange={setSearch} />}
       {isLoading ? (
-        <ActivityIndicator className="mt-12" />
+        fetchStatus === 'paused' ? (
+          <EmptyState
+            title="You’re offline"
+            message="Connect to the internet to load this list for the first time."
+            icon="cloud-offline-outline"
+          />
+        ) : (
+          <ActivityIndicator className="mt-12" />
+        )
       ) : isError ? (
         <View style={depth.raised} className="mx-4 mt-10 items-center rounded-3xl border border-red-100 bg-white p-8">
           <Text className="text-base font-bold text-slate-800">Couldn’t load this list</Text>
@@ -56,6 +64,7 @@ export function ResourceList<T extends { id: number }>({
           renderItem={({ item }) => renderItem(item)}
           contentContainerClassName="p-4 pb-32"
           keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
           ListEmptyComponent={(
             <EmptyState

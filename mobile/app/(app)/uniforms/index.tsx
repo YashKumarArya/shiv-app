@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ComponentProps } from 'react';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,7 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api, errorMessage } from '@/api/client';
+import { api, errorMessage, fileUrl } from '@/api/client';
 import { employeeInitials, employeeName } from '@/api/types';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -33,6 +35,7 @@ interface UniformEmployee {
   employee_code: string;
   first_name: string;
   last_name?: string | null;
+  photo?: string | null;
   designation_name?: string | null;
   status: UniformStatus;
   issue_id?: number;
@@ -63,6 +66,7 @@ const SummaryMetric = ({ icon, label, value, color }: {
 
 export default function UniformTracker() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { employee_id: employeeId } = useLocalSearchParams<{ employee_id?: string }>();
   const [search, setSearch] = useState('');
@@ -75,13 +79,43 @@ export default function UniformTracker() {
     ).data,
   });
 
+  const trackingKey = ['uniforms', 'tracking', employeeId] as const;
   const returnUniform = useMutation({
     mutationFn: (issueId: number) => api.put(`/uniforms/${issueId}`, {
       returned: true,
       returned_date: today(),
     }),
-    onSuccess: () => invalidateResourceQueries(queryClient, 'uniforms'),
-    onError: (mutationError) => notify('Couldn’t return uniform', errorMessage(mutationError)),
+    // The row flips to Not Issued immediately; a failure rolls back.
+    onMutate: async (issueId) => {
+      await queryClient.cancelQueries({ queryKey: trackingKey });
+      const previous = queryClient.getQueryData<UniformTrackingResponse>(trackingKey);
+      queryClient.setQueryData<UniformTrackingResponse>(trackingKey, (old) => {
+        if (!old) return old;
+        const employees = old.employees.map((employee) =>
+          employee.issue_id === issueId
+            ? {
+              ...employee,
+              status: 'Not Issued' as const,
+              issue_id: undefined,
+              issued_date: undefined,
+              uniform_size: undefined,
+              remarks: undefined,
+            }
+            : employee);
+        const issued = employees.filter((employee) => employee.status === 'Issued').length;
+        return {
+          ...old,
+          employees,
+          summary: { total: employees.length, issued, not_issued: employees.length - issued },
+        };
+      });
+      return { previous };
+    },
+    onError: (mutationError, _issueId, context) => {
+      if (context?.previous) queryClient.setQueryData(trackingKey, context.previous);
+      notify('Couldn’t return uniform', errorMessage(mutationError));
+    },
+    onSettled: () => invalidateResourceQueries(queryClient, 'uniforms'),
   });
 
   const scopedEmployees = useMemo(
@@ -134,7 +168,7 @@ export default function UniformTracker() {
       <Stack.Screen options={{ title: 'Uniform Tracker' }} />
       <ScrollView
         className="flex-1 bg-transparent"
-        contentContainerClassName="pb-12"
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 24, 48) }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#7c3aed" />}
@@ -258,9 +292,11 @@ export default function UniformTracker() {
                           index < visibleEmployees.length - 1 ? 'border-b border-slate-100' : ''
                         }`}
                       >
-                        <View className={`h-12 w-12 items-center justify-center rounded-2xl ${issued ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                        <View className={`h-12 w-12 items-center justify-center rounded-2xl ${issued ? 'bg-emerald-50' : 'bg-amber-50'} overflow-hidden`}>
                           {pending ? (
                             <ActivityIndicator size="small" color="#7c3aed" />
+                          ) : employee.photo ? (
+                            <Image source={{ uri: fileUrl(employee.photo) }} className="h-12 w-12" />
                           ) : (
                             <Text className={`text-sm font-extrabold ${issued ? 'text-emerald-700' : 'text-amber-700'}`}>
                               {employeeInitials(employee)}

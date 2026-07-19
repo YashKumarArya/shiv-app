@@ -101,24 +101,42 @@ export default function AttendanceTab() {
   const { data, isError, isLoading, isRefetching, refetch } = useQuery<RosterRow[]>({
     queryKey: ['attendance', 'roster', date],
     queryFn: async () => (await api.get('/attendance/roster', { params: { date } })).data,
+    // Another staff member may be marking attendance for the same day concurrently,
+    // so refresh this sooner than the app-wide default.
+    staleTime: 30_000,
   });
+
+  const rosterKey = ['attendance', 'roster', date] as const;
+  const patchRoster = async (patch: (row: RosterRow) => RosterRow) => {
+    await queryClient.cancelQueries({ queryKey: rosterKey });
+    const previous = queryClient.getQueryData<RosterRow[]>(rosterKey);
+    queryClient.setQueryData<RosterRow[]>(rosterKey, (rows) => rows?.map(patch));
+    return { previous };
+  };
+  const rollbackRoster = (error: unknown, context?: { previous?: RosterRow[] }) => {
+    if (context?.previous) queryClient.setQueryData(rosterKey, context.previous);
+    onError(error);
+  };
 
   const mark = useMutation({
     mutationFn: ({ row, status }: { row: RosterRow; status: Status }) =>
       row.attendance_id
         ? api.put(`/attendance/${row.attendance_id}`, { status })
         : api.post('/attendance', { employee_id: row.employee_id, attendance_date: date, status }),
-    onSuccess: async () => {
-      await invalidate();
+    // The sheet closes and the row recolors immediately; a failure rolls back.
+    onMutate: async ({ row, status }) => {
       setSelectedRow(null);
+      return patchRoster((r) => (r.employee_id === row.employee_id ? { ...r, status } : r));
     },
-    onError,
+    onError: (error, _variables, context) => rollbackRoster(error, context),
+    onSettled: invalidate,
   });
 
   const markAll = useMutation({
     mutationFn: () => api.post('/attendance/mark-all-present', { date }),
-    onSuccess: invalidate,
-    onError,
+    onMutate: () => patchRoster((r) => (r.status ? r : { ...r, status: 'Present' })),
+    onError: (error, _variables, context) => rollbackRoster(error, context),
+    onSettled: invalidate,
   });
 
   const counts = statuses.reduce<Record<Status, number>>(
@@ -338,9 +356,14 @@ export default function AttendanceTab() {
 
           <View
             accessibilityViewIsModal
-            className="rounded-t-3xl border border-white/80 bg-white px-4 pt-3"
-            style={[depth.chrome, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            className="rounded-t-3xl border border-white/80 bg-white"
+            style={[depth.chrome, { maxHeight: '85%', paddingBottom: Math.max(insets.bottom, 16) }]}
           >
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerClassName="px-4 pt-3"
+            >
             <View className="mb-3 h-1 w-10 self-center rounded-full bg-slate-300" />
             <View className="flex-row items-start justify-between px-1">
               <View className="flex-1 pr-4">
@@ -399,8 +422,9 @@ export default function AttendanceTab() {
 
             <View className="mt-3 flex-row items-center justify-center">
               <Ionicons name="flash-outline" size={13} color="#94a3b8" />
-              <Text className="ml-1 text-xs text-slate-400">Changes are saved immediately</Text>
+              <Text className="ml-1 text-xs text-slate-400">Changes are confirmed with the server</Text>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

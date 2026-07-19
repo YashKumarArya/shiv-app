@@ -27,6 +27,8 @@ export const useUpload = () =>
       if (extractSignature) form.append('type', 'signature');
       const { data } = await api.post<{ path: string }>('/uploads', form, {
         headers: Platform.OS === 'web' ? undefined : { 'Content-Type': 'multipart/form-data' },
+        // Photos need more time than normal JSON requests on slow mobile data.
+        timeout: 60_000,
       });
       return data.path;
     },

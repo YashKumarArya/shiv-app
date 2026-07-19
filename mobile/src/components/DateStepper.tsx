@@ -25,16 +25,16 @@ export const DateStepper = ({ value, onChange }: Props) => {
         <Ionicons name="chevron-back" size={21} color="#334155" />
       </Pressable>
 
-      <View className="flex-1 items-center px-2">
-        <View className="flex-row items-center">
+      <View className="min-w-0 flex-1 items-center px-2">
+        <View className="max-w-full flex-row items-center">
           <Ionicons name="calendar-outline" size={14} color="#64748b" />
-          <Text className="ml-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <Text className="ml-1.5 shrink text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Attendance date
           </Text>
         </View>
-        <View className="mt-0.5 flex-row items-center">
+        <View className="mt-0.5 max-w-full flex-row flex-wrap items-center justify-center">
           <Text
-            className="text-base font-bold text-slate-900"
+            className="shrink text-center text-base font-bold text-slate-900"
             accessibilityRole="text"
             accessibilityLabel={`Selected date, ${formatDate(value)}${isToday ? ', today' : ''}`}
           >

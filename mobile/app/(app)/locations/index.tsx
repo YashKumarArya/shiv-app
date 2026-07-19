@@ -18,7 +18,7 @@ export default function Locations() {
             title={loc.site_name}
             subtitle={[loc.client_name, loc.city].filter(Boolean).join(' · ') || undefined}
             badge={loc.status ? 'Active' : 'Inactive'}
-            href={`/locations/form?id=${loc.id}`}
+            href={`/locations/${loc.id}`}
           />
         )}
       />

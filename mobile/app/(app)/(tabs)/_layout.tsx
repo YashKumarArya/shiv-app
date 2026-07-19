@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const tab = (
   title: string,
@@ -13,8 +15,19 @@ const tab = (
 });
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  // React Navigation normally receives this inset from the safe-area provider.
+  // Some Android edge-to-edge/three-button navigation combinations report zero
+  // during the first layout. Retain the startup measurement and a gesture-bar
+  // floor so tab labels never share the system-navigation touch region.
+  const measuredBottomInset = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0);
+  const bottomInset = Platform.OS === 'android'
+    ? Math.max(measuredBottomInset, 24)
+    : measuredBottomInset;
+
   return (
     <Tabs
+      safeAreaInsets={{ bottom: bottomInset }}
       screenOptions={{
         sceneStyle: { backgroundColor: '#f6f0ff' },
         headerStyle: { backgroundColor: '#fff8ed' },

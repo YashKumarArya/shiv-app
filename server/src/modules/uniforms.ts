@@ -27,6 +27,7 @@ interface UniformTrackingRow {
   employee_code: string;
   first_name: string;
   last_name: string | null;
+  photo: string | null;
   designation_name: string;
   employee_status: 'Active' | 'Inactive';
   issue_id: number | null;
@@ -40,7 +41,7 @@ const router = Router();
 router.get('/tracking', asyncHandler(async (req, res) => {
   const employeeId = parseInput(trackingQuerySchema, req.query).employee_id ?? null;
   const rows = await query<UniformTrackingRow>(
-    `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name,
+    `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name, e.photo,
             d.designation_name, e.status AS employee_status,
             latest_issue.id AS issue_id,
             to_char(latest_issue.issued_date, 'YYYY-MM-DD') AS issued_date,
@@ -67,6 +68,7 @@ router.get('/tracking', asyncHandler(async (req, res) => {
       employee_code: row.employee_code,
       first_name: row.first_name,
       last_name: row.last_name,
+      photo: row.photo,
       designation_name: row.designation_name,
       employee_status: row.employee_status,
       status: row.issue_id == null ? 'Not Issued' as const : 'Issued' as const,
