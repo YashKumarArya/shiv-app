@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.shivapp.agency",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {

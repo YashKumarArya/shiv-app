@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useMemo, useState } from 'react';
@@ -18,6 +17,7 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { useList } from '@/hooks/useCrud';
+import { useSettings } from '@/hooks/useSettings';
 import {
   A4_HEIGHT_POINTS,
   A4_WIDTH_POINTS,
@@ -33,10 +33,7 @@ export default function IdCardSheet() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [pdfAction, setPdfAction] = useState<'print' | 'share' | null>(null);
   const employeesQuery = useList<Employee>('employees', { status: 'Active', limit: 200 });
-  const { data: settings } = useQuery<Record<string, string>>({
-    queryKey: ['settings'],
-    queryFn: async () => (await api.get('/settings')).data,
-  });
+  const { data: settings } = useSettings();
 
   const visibleEmployees = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();

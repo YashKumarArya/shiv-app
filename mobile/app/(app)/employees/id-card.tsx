@@ -42,6 +42,7 @@ import {
   useItem,
   useList,
 } from '@/hooks/useCrud';
+import { useSettings } from '@/hooks/useSettings';
 import { formatDate, today } from '@/lib/format';
 import {
   A4_HEIGHT_POINTS,
@@ -51,7 +52,6 @@ import {
 } from '@/lib/idCardPrint';
 import { notify } from '@/lib/notify';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 
 // Hardcoded pixel size — deliberately NOT derived from screen width (no `w-full`,
 // no percentages). A phone and a tablet must lay out this view with the exact same
@@ -153,10 +153,7 @@ export default function EmployeeIdCard() {
     employee_id: employeeId,
     limit: 200,
   });
-  const { data: settings } = useQuery<Record<string, string>>({
-    queryKey: ['settings'],
-    queryFn: async () => (await api.get('/settings')).data,
-  });
+  const { data: settings } = useSettings();
 
   if (isError) return <Screen error={errorMessage(error)} onRetry={() => void refetch()} />;
   if (isLoading || !employee || !fontsLoaded) {

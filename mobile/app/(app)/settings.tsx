@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { Screen } from '@/components/ui/Screen';
+import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/providers/AuthProvider';
 import { notify } from '@/lib/notify';
 import { invalidateQueryRoots } from '@/lib/queryInvalidation';
@@ -49,11 +50,7 @@ export default function Settings() {
     isError: settingsError,
     isLoading: settingsLoading,
     refetch: refetchSettings,
-  } = useQuery<Record<string, string>>({
-    queryKey: ['settings'],
-    queryFn: async () => (await api.get('/settings')).data,
-    enabled: isAdmin,
-  });
+  } = useSettings(isAdmin);
 
   const saveSalarySettings = useMutation({
     mutationFn: (payload: { salary_exclude_sundays?: string; salary_off_days?: number }) =>
