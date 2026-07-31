@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { usePreventRemove } from '@react-navigation/native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useIsMutating } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
@@ -47,35 +48,37 @@ export function useResourceForm(
     form.reset(Object.fromEntries(Object.keys(defaults).map((key) => [key, normalize(data[key])])));
   }, [data, isDirty]);
 
-  useEffect(() => {
-    const pending = save.isPending || uploading;
-    if (!isDirty && !pending) return;
+  const pending = save.isPending || uploading;
+  // A plain beforeRemove listener cannot block a native-stack removal (the
+  // native pop can complete before JS runs, desyncing navigation state).
+  // usePreventRemove is the supported guard: it also disables the native
+  // swipe-back gesture while active.
+  usePreventRemove(isDirty || pending, ({ data }) => {
+    if (allowLeave.current) {
+      navigation.dispatch(data.action);
+      return;
+    }
+    // A photo upload or server save must finish before this screen unmounts;
+    // otherwise its success callback could update a form that no longer exists.
+    if (pending) return;
 
-    return navigation.addListener('beforeRemove', (event) => {
-      if (allowLeave.current) return;
-      event.preventDefault();
-      // A photo upload or server save must finish before this screen unmounts;
-      // otherwise its success callback could update a form that no longer exists.
-      if (pending) return;
-
-      const discard = () => {
-        allowLeave.current = true;
-        navigation.dispatch(event.data.action);
-      };
-      if (Platform.OS === 'web') {
-        if (globalThis.confirm('Discard your unsaved changes?')) discard();
-        return;
-      }
-      Alert.alert(
-        'Discard changes?',
-        'The information entered on this form has not been saved.',
-        [
-          { text: 'Keep editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: discard },
-        ],
-      );
-    });
-  }, [isDirty, navigation, save.isPending, uploading]);
+    const discard = () => {
+      allowLeave.current = true;
+      navigation.dispatch(data.action);
+    };
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm('Discard your unsaved changes?')) discard();
+      return;
+    }
+    Alert.alert(
+      'Discard changes?',
+      'The information entered on this form has not been saved.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: discard },
+      ],
+    );
+  });
 
   const submit = form.handleSubmit(async (values) => {
     const rawValues = form.getValues();

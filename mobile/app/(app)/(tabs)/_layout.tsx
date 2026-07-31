@@ -3,6 +3,11 @@ import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Android's three-button navigation area is normally 48 dp tall. A few OEM
+// builds report a zero or gesture-sized inset while edge-to-edge mode is
+// starting, so use the full navigation-bar height as the Android fallback.
+const ANDROID_NAVIGATION_BAR_FALLBACK = 48;
+
 const tab = (
   title: string,
   outlineIcon: keyof typeof Ionicons.glyphMap,
@@ -18,11 +23,11 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   // React Navigation normally receives this inset from the safe-area provider.
   // Some Android edge-to-edge/three-button navigation combinations report zero
-  // during the first layout. Retain the startup measurement and a gesture-bar
-  // floor so tab labels never share the system-navigation touch region.
+  // during the first layout. Retain the startup measurement and reserve enough
+  // room for the taller three-button bar when that measurement is unreliable.
   const measuredBottomInset = Math.max(insets.bottom, initialWindowMetrics?.insets.bottom ?? 0);
   const bottomInset = Platform.OS === 'android'
-    ? Math.max(measuredBottomInset, 24)
+    ? Math.max(measuredBottomInset, ANDROID_NAVIGATION_BAR_FALLBACK)
     : measuredBottomInset;
 
   return (

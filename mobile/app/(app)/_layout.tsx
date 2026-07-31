@@ -35,6 +35,9 @@ export default function AppLayout() {
         headerTintColor: '#2457d6',
         headerBackButtonDisplayMode: 'generic',
         headerBackTitle: 'Back',
+        // The long-press back menu can pop several screens at once, skipping
+        // the unsaved-changes guard on form screens.
+        headerBackButtonMenuEnabled: false,
         headerTitleStyle: { color: '#102a43', fontSize: 17, fontWeight: '700' },
       }}
     >
