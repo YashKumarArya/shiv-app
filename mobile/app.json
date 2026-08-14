@@ -34,6 +34,23 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow camera access to scan patrol checkpoint QR codes and take the photo that proves you were there.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow location access to confirm you are at the patrol checkpoint you are scanning.",
+          "locationWhenInUsePermission": "Allow location access to confirm you are at the patrol checkpoint you are scanning.",
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      "expo-notifications",
       "expo-asset",
       "expo-font",
       [

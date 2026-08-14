@@ -8,6 +8,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
+import { isFieldRole } from '@/api/types';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 
 // Track connectivity so stale data can refresh when the device reconnects.
@@ -48,13 +49,21 @@ const persister = createAsyncStoragePersister({ storage: AsyncStorage, throttleT
 
 function RootNavigator() {
   const { user, loading } = useAuth();
+  // Two separate stacks rather than one stack with hidden screens: a guard must
+  // never be one navigation bug away from an agency-wide management screen. The
+  // API refuses those routes for field roles regardless, but the app should not
+  // be relying on that to decide what it renders.
+  const field = !!user && isFieldRole(user.role);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       {/* Keep the root navigator mounted while secure storage is loading. */}
       <Stack.Screen name="index" />
-      <Stack.Protected guard={!loading && !!user}>
+      <Stack.Protected guard={!loading && !!user && !field}>
         <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!loading && field}>
+        <Stack.Screen name="(self)" />
       </Stack.Protected>
       <Stack.Protected guard={!loading && !user}>
         <Stack.Screen name="login" />

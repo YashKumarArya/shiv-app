@@ -30,12 +30,16 @@ const companySchema = z.object({
   company_name: z.string().optional(),
   company_address: z.string().optional(),
   company_phone: z.string().optional(),
+  company_email: z.string().optional(),
+  company_gst_number: z.string().optional(),
+  company_tagline: z.string().optional(),
   company_logo: z.string().optional(),
   company_signature: z.string().optional(),
 });
 type CompanyForm = z.infer<typeof companySchema>;
 const companyDefaults: CompanyForm = {
-  company_name: '', company_address: '', company_phone: '', company_logo: '', company_signature: '',
+  company_name: '', company_address: '', company_phone: '', company_email: '',
+  company_gst_number: '', company_tagline: '', company_logo: '', company_signature: '',
 };
 
 export default function Settings() {
@@ -89,6 +93,9 @@ export default function Settings() {
       company_name: settings.company_name ?? '',
       company_address: settings.company_address ?? '',
       company_phone: settings.company_phone ?? '',
+      company_email: settings.company_email ?? '',
+      company_gst_number: settings.company_gst_number ?? '',
+      company_tagline: settings.company_tagline ?? '',
       company_logo: settings.company_logo ?? '',
       company_signature: settings.company_signature ?? '',
     });
@@ -99,7 +106,7 @@ export default function Settings() {
     mutationFn: (values: CompanyForm) => api.put('/settings', values),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
-      notify('Branding updated', 'The logo and company details will appear on ID cards.');
+      notify('Branding updated', 'The company details will appear on ID cards and quotations.');
     },
     onError: (error) => notify('Unable to update branding', errorMessage(error)),
   });
@@ -270,8 +277,8 @@ export default function Settings() {
               <Ionicons name="business-outline" size={17} color="#2457d6" />
             </View>
             <View className="ml-2.5">
-              <Text className="font-semibold text-slate-900">Company & ID card</Text>
-              <Text className="text-xs text-slate-500">Shown on every employee's printable ID card</Text>
+              <Text className="font-semibold text-slate-900">Company branding</Text>
+              <Text className="text-xs text-slate-500">Shown on printable ID cards and quotations</Text>
             </View>
           </View>
           <View className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -294,6 +301,14 @@ export default function Settings() {
               placeholder="e.g. Moradabad"
             />
             <FormField control={companyForm.control} name="company_phone" label="Phone" keyboardType="phone-pad" />
+            <FormField control={companyForm.control} name="company_email" label="Company email" keyboardType="email-address" autoCapitalize="none" />
+            <FormField control={companyForm.control} name="company_gst_number" label="GST number" autoCapitalize="characters" />
+            <FormField
+              control={companyForm.control}
+              name="company_tagline"
+              label="Tagline / service description"
+              placeholder="e.g. Expert Security Organizer & Man Power Consultant"
+            />
             <PhotoPicker
               control={companyForm.control}
               name="company_signature"

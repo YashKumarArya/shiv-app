@@ -16,16 +16,27 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     execution_time_ms INTEGER NOT NULL CHECK (execution_time_ms >= 0)
 );
 
+-- Office roles (admin, staff) sign in with email. Field roles (supervisor,
+-- guard) sign in with phone and are permanently bound to one employee row --
+-- employee_id is the key every self-scoped query uses, so a guard can never
+-- widen their own access by passing a different id.
 CREATE TABLE IF NOT EXISTS app_users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
+    email VARCHAR(150) UNIQUE,
     phone VARCHAR(15),
     password_hash TEXT NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
+    role VARCHAR(20) NOT NULL DEFAULT 'staff'
+        CHECK (role IN ('admin', 'staff', 'supervisor', 'guard')),
+    -- Foreign key added after employees is created, further down this file.
+    employee_id INT,
     status BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT app_users_field_role_employee_check
+        CHECK ((role IN ('guard', 'supervisor')) = (employee_id IS NOT NULL)),
+    CONSTRAINT app_users_identifier_check
+        CHECK (email IS NOT NULL OR phone IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS designations (
@@ -238,15 +249,152 @@ CREATE TABLE IF NOT EXISTS app_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ============================================
+-- PATROL ROUTES, CHECKPOINTS AND SCANS
+-- ============================================
+
+-- Expected patrols are not stored. A round that should have happened is the
+-- join of patrol_schedules x an active employee_assignment x a calendar date,
+-- computed at read time; only real attempts create session and scan rows.
+CREATE TABLE IF NOT EXISTS patrol_routes (
+    id SERIAL PRIMARY KEY,
+    location_id INT NOT NULL REFERENCES locations(id),
+    route_name VARCHAR(150) NOT NULL,
+    description TEXT,
+    geofence_metres INT NOT NULL DEFAULT 75,
+    grace_minutes INT NOT NULL DEFAULT 30,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT patrol_routes_name_per_location UNIQUE (location_id, route_name),
+    CONSTRAINT patrol_routes_geofence_sane CHECK (geofence_metres BETWEEN 10 AND 2000),
+    CONSTRAINT patrol_routes_grace_sane CHECK (grace_minutes BETWEEN 5 AND 720)
+);
+
+-- qr_token is printed into the physical sticker and is random by design:
+-- possession of it is what proves the guard stood in front of the placard.
+CREATE TABLE IF NOT EXISTS patrol_checkpoints (
+    id SERIAL PRIMARY KEY,
+    route_id INT NOT NULL REFERENCES patrol_routes(id) ON DELETE CASCADE,
+    checkpoint_name VARCHAR(150) NOT NULL,
+    sequence INT NOT NULL,
+    qr_token TEXT NOT NULL,
+    latitude NUMERIC(9,6),
+    longitude NUMERIC(9,6),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT patrol_checkpoints_token_unique UNIQUE (qr_token),
+    CONSTRAINT patrol_checkpoints_sequence_per_route UNIQUE (route_id, sequence),
+    CONSTRAINT patrol_checkpoints_sequence_positive CHECK (sequence > 0),
+    CONSTRAINT patrol_checkpoints_token_length CHECK (char_length(qr_token) BETWEEN 16 AND 128),
+    CONSTRAINT patrol_checkpoints_coords_paired CHECK ((latitude IS NULL) = (longitude IS NULL)),
+    CONSTRAINT patrol_checkpoints_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+    CONSTRAINT patrol_checkpoints_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+);
+
+CREATE TABLE IF NOT EXISTS patrol_schedules (
+    id SERIAL PRIMARY KEY,
+    route_id INT NOT NULL REFERENCES patrol_routes(id) ON DELETE CASCADE,
+    start_time TIME NOT NULL,
+    days_of_week SMALLINT[] NOT NULL DEFAULT ARRAY[1,2,3,4,5,6,7],
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT patrol_schedules_time_per_route UNIQUE (route_id, start_time),
+    CONSTRAINT patrol_schedules_days_valid CHECK (
+        array_length(days_of_week, 1) BETWEEN 1 AND 7
+        AND days_of_week <@ ARRAY[1,2,3,4,5,6,7]::SMALLINT[]
+    )
+);
+
+-- client_uuid is generated on the guard's device so a round begun with no
+-- signal keeps one identity across retries.
+CREATE TABLE IF NOT EXISTS patrol_sessions (
+    id SERIAL PRIMARY KEY,
+    route_id INT NOT NULL REFERENCES patrol_routes(id),
+    schedule_id INT REFERENCES patrol_schedules(id) ON DELETE SET NULL,
+    employee_id INT NOT NULL REFERENCES employees(id),
+    patrol_date DATE NOT NULL,
+    client_uuid UUID NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT patrol_sessions_client_uuid_unique UNIQUE (client_uuid),
+    CONSTRAINT patrol_sessions_one_per_slot UNIQUE (employee_id, patrol_date, schedule_id)
+);
+
+-- distance_metres is resolved on the server and stored, so later edits to a
+-- checkpoint's recorded position cannot rewrite whether a past scan was inside
+-- the fence.
+CREATE TABLE IF NOT EXISTS patrol_scans (
+    id SERIAL PRIMARY KEY,
+    session_id INT NOT NULL REFERENCES patrol_sessions(id) ON DELETE CASCADE,
+    checkpoint_id INT NOT NULL REFERENCES patrol_checkpoints(id),
+    scanned_at TIMESTAMPTZ NOT NULL,
+    server_received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    photo TEXT NOT NULL,
+    latitude NUMERIC(9,6),
+    longitude NUMERIC(9,6),
+    distance_metres NUMERIC(8,1),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT patrol_scans_one_per_checkpoint UNIQUE (session_id, checkpoint_id),
+    CONSTRAINT patrol_scans_coords_paired CHECK ((latitude IS NULL) = (longitude IS NULL)),
+    CONSTRAINT patrol_scans_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+    CONSTRAINT patrol_scans_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+    CONSTRAINT patrol_scans_distance_nonnegative CHECK (distance_metres IS NULL OR distance_metres >= 0)
+);
+
 -- Non-destructive compatibility for installations created from the original
 -- root schema before the API added roles and generic updated_at writes.
 ALTER TABLE app_users
     ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'staff';
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS employee_id INT;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_app_user_employee' AND conrelid = 'app_users'::regclass
+    ) THEN
+        ALTER TABLE app_users
+            ADD CONSTRAINT fk_app_user_employee
+            FOREIGN KEY (employee_id) REFERENCES employees(id);
+    END IF;
+END $$;
 ALTER TABLE employee_assignments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE uniform_issues ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+CREATE SEQUENCE IF NOT EXISTS quotation_number_seq START WITH 1;
+
+CREATE TABLE IF NOT EXISTS quotations (
+    id SERIAL PRIMARY KEY,
+    quotation_number VARCHAR(30) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Issued')),
+    quotation_date DATE NOT NULL,
+    valid_until DATE,
+    title VARCHAR(120) NOT NULL,
+    client_name VARCHAR(150) NOT NULL,
+    client_address TEXT,
+    client_gst_number VARCHAR(30),
+    client_contact_name VARCHAR(120),
+    client_phone VARCHAR(30),
+    client_email VARCHAR(200),
+    services JSONB NOT NULL CHECK (jsonb_typeof(services) = 'array'),
+    cost_heads JSONB NOT NULL CHECK (jsonb_typeof(cost_heads) = 'array'),
+    calculation JSONB NOT NULL CHECK (jsonb_typeof(calculation) = 'object'),
+    company_snapshot JSONB NOT NULL CHECK (jsonb_typeof(company_snapshot) = 'object'),
+    terms TEXT,
+    created_by INT NOT NULL REFERENCES app_users(id) ON DELETE RESTRICT,
+    issued_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (valid_until IS NULL OR valid_until >= quotation_date),
+    CHECK ((status = 'Issued') = (issued_at IS NOT NULL))
+);
 
 -- Superseded by salary_exclude_sundays + salary_off_days.
 DELETE FROM app_settings WHERE key = 'salary_off_mode';
@@ -257,6 +405,9 @@ INSERT INTO app_settings (key, value) VALUES
     ('company_name', ''),
     ('company_address', ''),
     ('company_phone', ''),
+    ('company_email', ''),
+    ('company_gst_number', ''),
+    ('company_tagline', ''),
     ('company_logo', ''),
     ('company_signature', '')
 ON CONFLICT (key) DO NOTHING;
@@ -283,11 +434,82 @@ CREATE INDEX IF NOT EXISTS idx_employees_designation ON employees(designation_id
 CREATE INDEX IF NOT EXISTS idx_assignments_location ON employee_assignments(location_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_location ON attendance(location_id);
 CREATE INDEX IF NOT EXISTS idx_uniforms_employee ON uniform_issues(employee_id);
+CREATE INDEX IF NOT EXISTS idx_quotations_date ON quotations(quotation_date DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_quotations_client ON quotations(client_name);
+
+CREATE OR REPLACE FUNCTION reject_issued_quotation_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF OLD.status = 'Issued' THEN
+        RAISE EXCEPTION 'Issued quotations are immutable; create a revision instead'
+            USING ERRCODE = '55000';
+    END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS quotations_reject_issued_mutation ON quotations;
+CREATE TRIGGER quotations_reject_issued_mutation
+BEFORE UPDATE OR DELETE ON quotations
+FOR EACH ROW EXECUTE FUNCTION reject_issued_quotation_change();
 CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_email_ci ON app_users(LOWER(email));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_one_active_per_employee
     ON employee_assignments(employee_id) WHERE status = 'Active';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_uniforms_one_outstanding_per_employee
     ON uniform_issues(employee_id) WHERE returned = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS app_users_employee_unique
+    ON app_users(employee_id) WHERE employee_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS app_users_phone_unique
+    ON app_users(phone) WHERE phone IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_app_users_role ON app_users(role);
+CREATE INDEX IF NOT EXISTS idx_patrol_routes_location ON patrol_routes(location_id);
+CREATE INDEX IF NOT EXISTS idx_patrol_checkpoints_route ON patrol_checkpoints(route_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_patrol_schedules_route ON patrol_schedules(route_id);
+CREATE INDEX IF NOT EXISTS idx_patrol_sessions_employee_date ON patrol_sessions(employee_id, patrol_date);
+CREATE INDEX IF NOT EXISTS idx_patrol_sessions_route_date ON patrol_sessions(route_id, patrol_date);
+CREATE INDEX IF NOT EXISTS idx_patrol_scans_session ON patrol_scans(session_id);
+CREATE INDEX IF NOT EXISTS idx_patrol_scans_checkpoint ON patrol_scans(checkpoint_id);
+
+-- A scan must belong to the same route as its session, which no foreign key can
+-- express on its own. Without this a replayed payload could attach a checkpoint
+-- from another site's route to a session and quietly complete it.
+CREATE OR REPLACE FUNCTION validate_patrol_scan_route()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    session_route_id INT;
+    checkpoint_route_id INT;
+BEGIN
+    SELECT route_id INTO session_route_id
+    FROM patrol_sessions WHERE id = NEW.session_id FOR SHARE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Patrol session % does not exist', NEW.session_id;
+    END IF;
+
+    SELECT route_id INTO checkpoint_route_id
+    FROM patrol_checkpoints WHERE id = NEW.checkpoint_id FOR SHARE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Patrol checkpoint % does not exist', NEW.checkpoint_id;
+    END IF;
+
+    IF session_route_id <> checkpoint_route_id THEN
+        RAISE EXCEPTION 'Checkpoint % does not belong to the patrolled route', NEW.checkpoint_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS patrol_scans_route_guard ON patrol_scans;
+CREATE TRIGGER patrol_scans_route_guard
+    BEFORE INSERT OR UPDATE ON patrol_scans
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_patrol_scan_route();
 
 CREATE OR REPLACE FUNCTION validate_payment_ledger_entry()
 RETURNS TRIGGER

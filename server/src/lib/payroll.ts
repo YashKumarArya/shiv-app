@@ -146,7 +146,7 @@ export const finalizePayrollSnapshots = async (
      SELECT e.id, $1, $2,
             d.id, d.designation_name, e.salary, d.default_salary,
             COALESCE(e.salary, d.default_salary),
-            $5, $6, $7, att.worked_days,
+            $5, $6, ($7::numeric)::int, att.worked_days,
             CASE WHEN COALESCE(e.salary, d.default_salary) IS NULL THEN 0
                  ELSE LEAST(
                    COALESCE(e.salary, d.default_salary)::numeric,
