@@ -9,6 +9,8 @@ import { addDays, formatDate, today } from '@/lib/format';
 interface Props {
   value: string;
   onChange: (date: string) => void;
+  /** Names what the date selects, for screens other than attendance. */
+  label?: string;
 }
 
 const localDate = (value: string) => {
@@ -23,7 +25,7 @@ const localDateString = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-export const DateStepper = ({ value, onChange }: Props) => {
+export const DateStepper = ({ value, onChange, label = 'Attendance date' }: Props) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftDate, setDraftDate] = useState(() => localDate(value));
   const previousDate = addDays(value, -1);
@@ -49,7 +51,7 @@ export const DateStepper = ({ value, onChange }: Props) => {
       <View className="max-w-full flex-row items-center">
         <Ionicons name="calendar-outline" size={14} color="#64748b" />
         <Text className="ml-1.5 shrink text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-          Attendance date
+          {label}
         </Text>
       </View>
       <View className="mt-0.5 max-w-full flex-row flex-wrap items-center justify-center">
@@ -81,7 +83,7 @@ export const DateStepper = ({ value, onChange }: Props) => {
         {Platform.OS === 'web' ? (
           <View
             className="relative min-h-12 min-w-0 flex-1 items-center justify-center rounded-xl px-2"
-            accessibilityLabel={`Attendance date, ${formatDate(value)}${isToday ? ', today' : ''}`}
+            accessibilityLabel={`${label}, ${formatDate(value)}${isToday ? ', today' : ''}`}
           >
             <View pointerEvents="none" className="items-center">
               {dateContent}
@@ -90,7 +92,7 @@ export const DateStepper = ({ value, onChange }: Props) => {
               type: 'date',
               value,
               max: today(),
-              'aria-label': `Choose attendance date, currently ${formatDate(value)}`,
+              'aria-label': `Choose ${label.toLowerCase()}, currently ${formatDate(value)}`,
               onChange: (event: { currentTarget: { value: string } }) => {
                 if (event.currentTarget.value) onChange(event.currentTarget.value);
               },
@@ -110,7 +112,7 @@ export const DateStepper = ({ value, onChange }: Props) => {
             onPress={openPicker}
             className="min-h-12 min-w-0 flex-1 items-center justify-center rounded-xl px-2 active:bg-slate-50"
             accessibilityRole="button"
-            accessibilityLabel={`Attendance date, ${formatDate(value)}${isToday ? ', today' : ''}`}
+            accessibilityLabel={`${label}, ${formatDate(value)}${isToday ? ', today' : ''}`}
             accessibilityHint="Opens the calendar to choose another date"
             accessibilityState={{ expanded: pickerOpen }}
           >
@@ -171,7 +173,7 @@ export const DateStepper = ({ value, onChange }: Props) => {
                 >
                   <Text className="text-base font-semibold text-slate-600">Cancel</Text>
                 </Pressable>
-                <Text className="text-lg font-bold text-slate-900">Attendance date</Text>
+                <Text className="text-lg font-bold text-slate-900">{label}</Text>
                 <Pressable
                   onPress={() => {
                     onChange(localDateString(draftDate));

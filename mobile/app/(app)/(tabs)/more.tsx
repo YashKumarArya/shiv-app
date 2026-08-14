@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useAuth } from '@/providers/AuthProvider';
 
 type MenuItem = {
   title: string;
@@ -10,6 +11,7 @@ type MenuItem = {
   href: Href;
   tone: string;
   iconColor: string;
+  adminOnly?: boolean;
 };
 
 const groups: { title: string; items: MenuItem[] }[] = [
@@ -43,6 +45,27 @@ const groups: { title: string; items: MenuItem[] }[] = [
     ],
   },
   {
+    title: 'Patrols',
+    items: [
+      {
+        title: 'Patrol board',
+        subtitle: 'Rounds walked, missed and due today',
+        icon: 'shield-checkmark-outline',
+        href: '/patrols/compliance',
+        tone: 'bg-emerald-50',
+        iconColor: '#059669',
+      },
+      {
+        title: 'Patrol routes',
+        subtitle: 'Checkpoints, QR stickers and times',
+        icon: 'map-outline',
+        href: '/patrols',
+        tone: 'bg-indigo-50',
+        iconColor: '#4f46e5',
+      },
+    ],
+  },
+  {
     title: 'Records',
     items: [
       {
@@ -69,6 +92,15 @@ const groups: { title: string; items: MenuItem[] }[] = [
         tone: 'bg-rose-50',
         iconColor: '#e11d48',
       },
+      {
+        title: 'Quotations',
+        subtitle: 'Create and issue client rate PDFs',
+        icon: 'document-attach-outline',
+        href: '/quotations',
+        tone: 'bg-blue-50',
+        iconColor: '#2563eb',
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -88,6 +120,7 @@ const groups: { title: string; items: MenuItem[] }[] = [
 
 export default function More() {
   const router = useRouter();
+  const { user } = useAuth();
 
   return (
     <Screen scroll className="pt-2">
@@ -104,14 +137,14 @@ export default function More() {
           </Text>
           <View className="rounded-2xl shadow-sm">
             <View className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
-              {group.items.map((item, index) => (
+              {group.items.filter((item) => !item.adminOnly || user?.role === 'admin').map((item, index, visibleItems) => (
                 <Pressable
                   key={item.title}
                   onPress={() => router.push(item.href)}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.title}, ${item.subtitle}`}
                   className={`flex-row items-center px-3.5 py-3 active:bg-slate-50 ${
-                    index < group.items.length - 1 ? 'border-b border-slate-100' : ''
+                    index < visibleItems.length - 1 ? 'border-b border-slate-100' : ''
                   }`}
                 >
                   <View className={`h-10 w-10 items-center justify-center rounded-xl ${item.tone}`}>

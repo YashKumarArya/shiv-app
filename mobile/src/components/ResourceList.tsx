@@ -4,9 +4,9 @@ import { errorMessage } from '@/api/client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useList, type ListParams } from '@/hooks/useCrud';
 import { EmptyState } from './ui/EmptyState';
+import type { IllustrationName } from './ui/Illustration';
 import { FAB } from './ui/FAB';
 import { SearchBar } from './ui/SearchBar';
-import { depth } from './ui/depth';
 
 interface Props<T> {
   resource: string;
@@ -16,13 +16,15 @@ interface Props<T> {
   addLabel?: string;
   emptyTitle?: string;
   emptyMessage?: string;
+  emptyIllustration?: IllustrationName;
   fabWithinTab?: boolean;
   renderItem: (item: T) => ReactElement;
 }
 
 /** Generic searchable, pull-to-refresh list for any API resource. */
 export function ResourceList<T extends { id: number }>({
-  resource, params, searchable, addHref, addLabel, emptyTitle, emptyMessage, fabWithinTab, renderItem,
+  resource, params, searchable, addHref, addLabel, emptyTitle, emptyMessage, emptyIllustration,
+  fabWithinTab, renderItem,
 }: Props<T>) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
@@ -46,17 +48,20 @@ export function ResourceList<T extends { id: number }>({
           <ActivityIndicator className="mt-12" />
         )
       ) : isError ? (
-        <View style={depth.raised} className="mx-4 mt-10 items-center rounded-3xl border border-red-100 bg-white p-8">
-          <Text className="text-base font-bold text-slate-800">Couldn’t load this list</Text>
-          <Text className="mt-1 text-center text-sm text-slate-500">{errorMessage(error)}</Text>
-          <Pressable
-            onPress={() => refetch()}
-            accessibilityRole="button"
-            className="mt-4 rounded-xl bg-brand-50 px-4 py-2.5"
-          >
-            <Text className="font-bold text-brand-600">Try again</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          title="Couldn’t load this list"
+          message={errorMessage(error)}
+          illustration="offline"
+          action={(
+            <Pressable
+              onPress={() => refetch()}
+              accessibilityRole="button"
+              className="min-h-12 justify-center rounded-xl bg-brand-50 px-5"
+            >
+              <Text className="font-bold text-brand-600">Try again</Text>
+            </Pressable>
+          )}
+        />
       ) : (
         <FlatList
           data={data}
@@ -71,6 +76,7 @@ export function ResourceList<T extends { id: number }>({
               title={search ? 'No matching results' : emptyTitle}
               message={search ? `Try a different search for “${search}”.` : emptyMessage}
               icon={search ? 'search-outline' : undefined}
+              illustration={search ? undefined : emptyIllustration}
             />
           )}
         />

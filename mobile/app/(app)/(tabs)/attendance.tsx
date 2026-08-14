@@ -247,7 +247,11 @@ export default function AttendanceTab() {
             )}
           />
         ) : !data?.length ? (
-          <EmptyState message="No active employees" />
+          <EmptyState
+            title="No active employees"
+            message="Add an active employee before recording attendance."
+            illustration="attendance-calendar"
+          />
         ) : (
           <View style={depth.raised} className="mx-4 mt-4 rounded-2xl">
             <View className="overflow-hidden rounded-2xl border border-white/80 bg-white">

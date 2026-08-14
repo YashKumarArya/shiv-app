@@ -1,5 +1,6 @@
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { isFieldRole } from '@/api/types';
 import { AppBackground } from '@/components/ui/AppBackground';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -13,5 +14,6 @@ export default function Index() {
       </View>
     );
   }
-  return <Redirect href={user ? '/(app)/(tabs)' : '/login'} />;
+  if (!user) return <Redirect href="/login" />;
+  return <Redirect href={isFieldRole(user.role) ? '/(self)/(tabs)' : '/(app)/(tabs)'} />;
 }

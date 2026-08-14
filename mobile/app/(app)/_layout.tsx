@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 const screens: [name: string, title: string][] = [
   ['employees/[id]', 'Employee Details'],
   ['employees/form', 'Employee'],
+  ['employees/app-access', 'App Access'],
   ['employees/id-card', 'ID Card'],
   ['employees/id-card-sheet', 'Print ID Cards'],
   ['designations/index', 'Designations'],
@@ -14,6 +15,14 @@ const screens: [name: string, title: string][] = [
   ['assignments/form', 'Assign Employee'],
   ['attendance/mark', 'Attendance'],
   ['attendance/[employeeId]', 'Work Calendar'],
+  ['patrols/index', 'Patrol Routes'],
+  ['patrols/form', 'Patrol Route'],
+  ['patrols/[id]', 'Patrol Route'],
+  ['patrols/checkpoint-form', 'Checkpoint'],
+  ['patrols/schedule-form', 'Patrol Time'],
+  ['patrols/qr-sheet', 'Print QR Stickers'],
+  ['patrols/compliance', 'Patrol Board'],
+  ['patrols/session', 'Patrol Detail'],
   ['payments/index', 'Salary Tracking'],
   ['payments/history', 'Payment History'],
   ['payments/form', 'Record Payment'],
@@ -22,6 +31,9 @@ const screens: [name: string, title: string][] = [
   ['documents/form', 'Document'],
   ['uniforms/index', 'Uniforms'],
   ['uniforms/form', 'Issue Uniform'],
+  ['quotations/index', 'Quotations'],
+  ['quotations/form', 'Quotation'],
+  ['quotations/[id]', 'Quotation Details'],
   ['settings', 'Settings'],
 ];
 

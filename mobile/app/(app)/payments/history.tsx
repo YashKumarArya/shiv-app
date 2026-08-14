@@ -146,7 +146,7 @@ export default function PaymentHistory() {
           <EmptyState
             title="No payments recorded"
             message="Use Add payment to record the first installment for this salary period."
-            icon="receipt-outline"
+            illustration="invoice"
           />
         ) : (
           <View style={depth.raised} className="rounded-3xl">

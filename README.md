@@ -206,6 +206,7 @@ in `mobile/.env` (and in the EAS build profile when building an APK).
 | `/payments/tracking/finalize` | POST (admin) | explicitly creates a snapshot when absent and appends a separate approval; historical payments require approval |
 | `/settings` | GET, PUT (admin) | app settings; `salary_exclude_sundays` and `salary_off_days` configure payable days |
 | `/documents` `/uniforms` | full CRUD | `?employee_id=` |
+| `/quotations` | admin-only drafts, issue, duplicate | Validated client rate tables with immutable issued snapshots and canonical paise calculations |
 | `/users` | full CRUD | admin-only; manage office staff logins |
 
 ## Deliberately deferred (from the doc's future list)

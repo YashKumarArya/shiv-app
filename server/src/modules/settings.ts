@@ -15,6 +15,9 @@ const schema = z.object({
   company_name: z.string().max(150),
   company_address: z.string().max(300),
   company_phone: z.string().max(20),
+  company_email: z.string().email().max(200).or(z.literal('')),
+  company_gst_number: z.string().max(30),
+  company_tagline: z.string().max(200),
   company_logo: uploadReference.or(z.literal('')),
   company_signature: uploadReference.or(z.literal('')),
 }).partial();

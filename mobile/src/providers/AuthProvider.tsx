@@ -6,10 +6,15 @@ import { api, TOKEN_KEY, USER_KEY } from '@/api/client';
 import { userSchema, type User } from '@/api/types';
 import { storage } from '@/lib/storage';
 
+/** Office staff sign in by email; guards and supervisors by phone number. */
+export type Credentials =
+  | { email: string; password: string }
+  | { phone: string; password: string };
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (credentials: Credentials) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -98,8 +103,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => { mounted = false; };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const response = loginResponseSchema.safeParse((await api.post('/auth/login', { email, password })).data);
+  const login = async (credentials: Credentials) => {
+    const response = loginResponseSchema.safeParse((await api.post('/auth/login', credentials)).data);
     if (!response.success) throw new Error('The server returned an invalid login response');
 
     try {

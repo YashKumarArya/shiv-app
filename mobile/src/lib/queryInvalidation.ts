@@ -8,6 +8,11 @@ const relatedQueries: Record<string, readonly string[]> = {
   attendance: ['payments', 'dashboard'],
   payments: ['dashboard'],
   uniforms: ['dashboard'],
+  // The route list carries checkpoint and schedule counts, and the patrol board
+  // is derived from all three, so editing any part refreshes the rest.
+  'patrols/routes': ['patrols/compliance'],
+  'patrols/checkpoints': ['patrols/routes', 'patrols/compliance'],
+  'patrols/schedules': ['patrols/routes', 'patrols/compliance'],
 };
 
 /** Invalidates query families together so joined and calculated screens cannot keep stale data. */

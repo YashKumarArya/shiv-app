@@ -40,6 +40,14 @@ const recordGroups = [
         color: '#7c3aed',
         tone: 'bg-violet-50',
       },
+      {
+        title: 'App access',
+        subtitle: 'Let them sign in to see their own record and walk patrols',
+        icon: 'phone-portrait-outline',
+        path: 'employees/app-access',
+        color: '#0891b2',
+        tone: 'bg-cyan-50',
+      },
     ],
   },
   {
