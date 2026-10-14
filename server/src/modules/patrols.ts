@@ -61,6 +61,18 @@ const routes = crudRouter({
                        WHERE s.route_id = patrol_routes.id AND s.is_active)::int AS schedule_count
               FROM patrol_routes
               JOIN locations ON locations.id = patrol_routes.location_id`,
+  beforeUpdate: async (body, _req, routeId, tx) => {
+    if (body.location_id !== undefined) {
+      const existing = await tx.queryOne<{ location_id: number }>(
+        'SELECT location_id FROM patrol_routes WHERE id = $1', [routeId],
+      );
+      if (!existing) throw new HttpError(404, 'Patrol route not found');
+      if (Number(body.location_id) !== existing.location_id) {
+        throw new HttpError(400, 'A patrol route cannot be moved to another site. Create a new route there.');
+      }
+    }
+    return body;
+  },
 });
 
 const checkpointFields = z.object({
@@ -315,6 +327,29 @@ router.get('/my/today', requireField, asyncHandler(async (req, res) => {
     return;
   }
 
+  const [dutyCodes, dutyAttendance] = await Promise.all([
+    queryOne<{ start_token: string; end_token: string }>(
+      'SELECT start_token, end_token FROM duty_qr_codes WHERE location_id = $1',
+      [assignment.location_id],
+    ),
+    queryOne<{ attendance_date: string; check_in: string | null; check_out: string | null }>(
+      `SELECT to_char(attendance_date, 'YYYY-MM-DD') AS attendance_date,
+              to_char(check_in, 'HH24:MI') AS check_in,
+              to_char(check_out, 'HH24:MI') AS check_out
+       FROM attendance WHERE employee_id = $1 AND location_id = $2
+         AND (attendance_date = CURRENT_DATE OR
+              (attendance_date = CURRENT_DATE - 1 AND check_in IS NOT NULL AND check_out IS NULL))
+       ORDER BY attendance_date DESC LIMIT 1`,
+      [employeeId, assignment.location_id],
+    ),
+  ]);
+  const duty = {
+    configured: !!dutyCodes,
+    start_qr_hash: dutyCodes ? qrTokenHash(dutyCodes.start_token) : null,
+    end_qr_hash: dutyCodes ? qrTokenHash(dutyCodes.end_token) : null,
+    attendance: dutyAttendance ?? null,
+  };
+
   const routeRows = await query(
     `SELECT id, route_name, description, geofence_metres, grace_minutes
      FROM patrol_routes
@@ -323,7 +358,7 @@ router.get('/my/today', requireField, asyncHandler(async (req, res) => {
     [assignment.location_id],
   );
   if (!routeRows.length) {
-    res.json({ location: assignment, routes: [] });
+    res.json({ location: assignment, routes: [], duty });
     return;
   }
 
@@ -366,6 +401,7 @@ router.get('/my/today', requireField, asyncHandler(async (req, res) => {
 
   res.json({
     location: assignment,
+    duty,
     // Every active round with the days it runs, for the device to build its
     // reminder alarms. `routes[].rounds` is filtered to today for the screen and
     // is deliberately not reused here: scheduling from it would set an alarm on

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useIsMutating } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';

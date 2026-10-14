@@ -59,6 +59,10 @@ export const usePatrolQueue = () => {
   return {
     ...state,
     pendingCount: state.pending.length,
-    retry: () => void drainQueue(),
+    retry: () => void (async () => {
+      const before = (await getQueue()).pending.length;
+      const after = (await drainQueue()).pending.length;
+      if (before !== after) void queryClient.invalidateQueries({ queryKey: ['patrols/my/today'] });
+    })(),
   };
 };

@@ -427,7 +427,7 @@ export default function SalaryTracking() {
                               <Image
                                 source={{ uri: fileUrl(employee.photo) }}
                                 resizeMode="cover"
-                                style={StyleSheet.absoluteFillObject}
+                                style={StyleSheet.absoluteFill}
                                 accessibilityLabel={`${employeeName(employee)} profile photo`}
                               />
                             ) : (

@@ -7,6 +7,7 @@ import auth from './modules/auth.js';
 import dashboard from './modules/dashboard.js';
 import designations from './modules/designations.js';
 import documents from './modules/documents.js';
+import duty from './modules/duty.js';
 import employees from './modules/employees.js';
 import locations from './modules/locations.js';
 import me from './modules/me.js';
@@ -36,6 +37,7 @@ routes.use('/me', me);
 // Mixed: route/checkpoint administration is office-only, walking a patrol is
 // field-only. The split is applied inside the module.
 routes.use('/patrols', patrols);
+routes.use('/duty', duty);
 
 // Agency-wide. Every one of these reads across all employees, so field logins
 // are refused before the module runs.

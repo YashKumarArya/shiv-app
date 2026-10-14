@@ -72,6 +72,11 @@ export default function GuardPatrol() {
     return () => clearInterval(tick);
   }, []);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const pendingStart = queue.pending.some((item) => item.kind === 'duty' && item.dutyKind === 'start');
+  const pendingEnd = queue.pending.some((item) => item.kind === 'duty' && item.dutyKind === 'end');
+  const dutyAttendance = patrol.data?.duty?.attendance;
+  const canStartDuty = !dutyAttendance?.check_in && !pendingStart;
+  const canEndDuty = (!!dutyAttendance?.check_in || pendingStart) && !dutyAttendance?.check_out && !pendingEnd;
 
   const openRound = async (route: GuardRoute, round: PatrolRound | null) => {
     const scheduleId = round?.schedule_id ?? null;
@@ -137,16 +142,16 @@ export default function GuardPatrol() {
             <View className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3.5">
               <View className="flex-row items-center">
                 <Ionicons name="warning" size={20} color="#dc2626" />
-                <Text className="ml-2 flex-1 font-bold text-red-700">Checkpoint not accepted</Text>
+                <Text className="ml-2 flex-1 font-bold text-red-700">Scan not accepted</Text>
               </View>
               <Text className="mt-1 text-sm leading-5 text-red-700">{queue.blockedReason}</Text>
               <Text className="mt-2 text-xs leading-5 text-red-600">
-                Nothing else will upload until this is cleared. Walk back and scan again, or discard it.
+                Nothing else will upload until this is cleared. Check the reason, then scan again or discard it.
               </Text>
               <Pressable
                 onPress={() => void dismissBlock().then(() => queue.retry())}
                 accessibilityRole="button"
-                accessibilityLabel="Discard the rejected checkpoint"
+                accessibilityLabel="Discard the rejected scan"
                 className="mt-3 min-h-12 items-center justify-center rounded-xl bg-white active:bg-slate-100"
               >
                 <Text className="font-bold text-red-700">Discard it and continue</Text>
@@ -175,6 +180,38 @@ export default function GuardPatrol() {
                 <Text className="mt-1 text-lg font-extrabold text-slate-900">
                   {patrol.data.location.site_name}
                 </Text>
+              </View>
+
+              <View style={depth.subtle} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <Text className="text-base font-extrabold text-slate-900">Duty attendance</Text>
+                {!patrol.data.duty?.configured ? (
+                  <Text className="mt-2 text-sm text-slate-500">Ask the office to print this site's Start Duty and End Duty QR stickers.</Text>
+                ) : (
+                  <>
+                    <Text className="mt-2 text-sm text-slate-600">
+                      {patrol.data.duty.attendance?.check_in
+                        ? `Started ${patrol.data.duty.attendance.attendance_date} at ${patrol.data.duty.attendance.check_in}`
+                        : 'Scan Start Duty when you arrive.'}
+                      {patrol.data.duty.attendance?.check_out
+                        ? ` · Ended at ${patrol.data.duty.attendance.check_out}` : ''}
+                    </Text>
+                    <View className="mt-3 flex-row gap-2">
+                      <Pressable onPress={() => router.push(`/duty/scan?kind=start&hash=${patrol.data!.duty!.start_qr_hash}`)}
+                        disabled={!canStartDuty} accessibilityRole="button"
+                        className={`min-h-12 flex-1 items-center justify-center rounded-xl px-2 ${canStartDuty ? 'bg-brand-600' : 'bg-slate-400'}`}>
+                        <Text className="font-bold text-white">Start Duty</Text>
+                      </Pressable>
+                      <Pressable onPress={() => router.push(`/duty/scan?kind=end&hash=${patrol.data!.duty!.end_qr_hash}`)}
+                        disabled={!canEndDuty} accessibilityRole="button"
+                        className={`min-h-12 flex-1 items-center justify-center rounded-xl px-2 ${canEndDuty ? 'bg-slate-800' : 'bg-slate-400'}`}>
+                        <Text className="font-bold text-white">End Duty</Text>
+                      </Pressable>
+                    </View>
+                    {queue.pending.some((item) => item.kind === 'duty') ? (
+                      <Text className="mt-2 text-xs text-amber-700">A duty scan is waiting to sync. Attendance updates after confirmation.</Text>
+                    ) : null}
+                  </>
+                )}
               </View>
 
               {patrol.data.routes.length === 0 ? (

@@ -42,10 +42,10 @@ const defaults = {
 };
 
 export default function PatrolRouteForm() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, location_id } = useLocalSearchParams<{ id?: string; location_id?: string }>();
   const router = useRouter();
   const { control, submit, saving, isEdit, formLoading, formError, retryForm } =
-    useResourceForm('patrols/routes', schema, defaults);
+    useResourceForm('patrols/routes', schema, { ...defaults, location_id: location_id ? Number(location_id) : '' });
   const remove = useRemove('patrols/routes');
 
   const deleteRoute = () => {
@@ -105,6 +105,7 @@ export default function PatrolRouteForm() {
           label: location.client_name ? `${location.site_name} (${location.client_name})` : location.site_name,
           value: location.id,
         })}
+        disabled={!!location_id || isEdit}
       />
       <FormField control={control} name="route_name" label="Route Name" />
       <FormField control={control} name="description" label="Description" multiline />

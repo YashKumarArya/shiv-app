@@ -34,7 +34,8 @@ export type PatrolOperation =
       checkpointId: number;
       checkpointName: string;
     }
-  | { kind: 'complete'; id: string; sessionClientUuid: string };
+  | { kind: 'complete'; id: string; sessionClientUuid: string }
+  | { kind: 'duty'; id: string; dutyKind: 'start' | 'end'; qrPayload: string; scannedAt: string; photoUri: string };
 
 export interface QueueState {
   pending: PatrolOperation[];
@@ -121,6 +122,16 @@ const send = async (operation: PatrolOperation) => {
     return;
   }
 
+  if (operation.kind === 'duty') {
+    await api.post('/duty/my/scans', {
+      client_uuid: operation.id,
+      qr_payload: operation.qrPayload,
+      scanned_at: operation.scannedAt,
+      photo: operation.photoUri,
+    });
+    return;
+  }
+
   await api.post('/patrols/my/scans', {
     session_client_uuid: operation.sessionClientUuid,
     qr_payload: operation.qrPayload,
@@ -135,7 +146,7 @@ const send = async (operation: PatrolOperation) => {
 
 /** True once the photo has been uploaded and photoUri holds the stored path. */
 const isUploaded = (operation: PatrolOperation) =>
-  operation.kind !== 'scan' || operation.photoUri.startsWith('/uploads/');
+  (operation.kind !== 'scan' && operation.kind !== 'duty') || operation.photoUri.startsWith('/uploads/');
 
 let draining = false;
 
@@ -162,7 +173,7 @@ export const drainQueue = async (): Promise<QueueState> => {
           // Record the stored path before posting the scan. Without this a
           // failure between the two steps re-uploads the same photo on every
           // retry, leaving an orphaned file on the server each time.
-          const photoUri = await uploadPhoto((next as Extract<PatrolOperation, { kind: 'scan' }>).photoUri);
+          const photoUri = await uploadPhoto((next as Extract<PatrolOperation, { kind: 'scan' | 'duty' }>).photoUri);
           next = { ...next, photoUri } as PatrolOperation;
           state = { ...state, pending: [next, ...rest] };
           await write(state);
@@ -175,7 +186,7 @@ export const drainQueue = async (): Promise<QueueState> => {
         if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
           const reason = (axios.isAxiosError(error)
             && (error.response?.data as { error?: string })?.error)
-            || 'This checkpoint could not be recorded.';
+            || 'This scan could not be recorded.';
           state = { ...state, blockedReason: reason };
           await write(state);
         }

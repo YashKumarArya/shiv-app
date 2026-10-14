@@ -1,4 +1,4 @@
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';

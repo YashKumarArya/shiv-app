@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, type ColorValue } from 'react-native';
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Matches the office app: some Android edge-to-edge/three-button combinations
@@ -13,7 +13,7 @@ const tab = (
   filledIcon: keyof typeof Ionicons.glyphMap,
 ) => ({
   title,
-  tabBarIcon: ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+  tabBarIcon: ({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) => (
     <Ionicons name={focused ? filledIcon : outlineIcon} color={color} size={size} />
   ),
 });

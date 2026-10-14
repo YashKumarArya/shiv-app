@@ -6,7 +6,6 @@
     "scheme": "shivapp",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "icon": "./logo-and-background/icon.png",
     "ios": {
       "supportsTablet": false
@@ -15,7 +14,6 @@
       "package": "com.shivapp.agency",
       "versionCode": 4,
       "allowBackup": false,
-      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./logo-and-background/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -37,7 +35,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow camera access to scan patrol checkpoint QR codes and take the photo that proves you were there.",
+          "cameraPermission": "Allow camera access to scan duty and patrol QR codes and take a photo at each scan.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }

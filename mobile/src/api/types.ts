@@ -128,6 +128,12 @@ export interface PatrolReminder {
 /** The guard app's whole patrol screen, from GET /patrols/my/today. */
 export interface PatrolToday {
   location: { location_id: number; site_name: string } | null;
+  duty?: {
+    configured: boolean;
+    start_qr_hash: string | null;
+    end_qr_hash: string | null;
+    attendance: { attendance_date: string; check_in: string | null; check_out: string | null } | null;
+  };
   reminders: PatrolReminder[];
   routes: GuardRoute[];
 }

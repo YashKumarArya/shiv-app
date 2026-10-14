@@ -13,6 +13,12 @@ export const checkpointQrPayload = (token: string) => `${CHECKPOINT_QR_PREFIX}${
 export const parseCheckpointQr = (payload: string) =>
   payload.startsWith(CHECKPOINT_QR_PREFIX) ? payload.slice(CHECKPOINT_QR_PREFIX.length) : null;
 
+export const DUTY_QR_PREFIX = 'shivapp:duty:';
+export const parseDutyQr = (payload: string): { kind: 'start' | 'end'; token: string } | null => {
+  const match = /^shivapp:duty:(start|end):([A-Za-z0-9_-]{24})$/.exec(payload);
+  return match ? { kind: match[1] as 'start' | 'end', token: match[2] } : null;
+};
+
 interface QrMatrix {
   modules: { size: number; get: (row: number, column: number) => number };
 }

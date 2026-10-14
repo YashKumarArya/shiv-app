@@ -11,6 +11,7 @@ const screens: [name: string, title: string][] = [
   ['locations/index', 'Locations'],
   ['locations/[id]', 'Location Details'],
   ['locations/form', 'Location'],
+  ['locations/duty-qr', 'Duty QR Stickers'],
   ['assignments/index', 'Assignments'],
   ['assignments/form', 'Assign Employee'],
   ['attendance/mark', 'Attendance'],

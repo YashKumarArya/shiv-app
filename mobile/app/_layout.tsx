@@ -89,7 +89,7 @@ export default function RootLayout() {
       persistOptions={{ persister, maxAge: 24 * 60 * 60_000, buster: 'v1' }}
     >
       <AuthProvider>
-        <StatusBar style="dark" backgroundColor="#fff8ed" />
+        <StatusBar style="dark" />
         <RootNavigator />
       </AuthProvider>
     </PersistQueryClientProvider>

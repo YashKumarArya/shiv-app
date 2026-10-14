@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 const screens: [name: string, title: string][] = [
   ['patrol/scan', 'Scan Checkpoint'],
   ['patrol/round', 'Patrol Round'],
+  ['duty/scan', 'Scan Duty QR'],
 ];
 
 export default function SelfLayout() {

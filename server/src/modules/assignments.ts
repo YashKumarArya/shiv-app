@@ -91,6 +91,7 @@ export default crudRouter({
                      employee_assignments.status,
                      employee_assignments.created_at, employee_assignments.updated_at,
                      CASE
+                       WHEN employee_assignments.status = 'Ended' THEN 'Ended'
                        WHEN employee_assignments.start_date > CURRENT_DATE THEN 'Planned'
                        WHEN employee_assignments.end_date IS NULL OR employee_assignments.end_date >= CURRENT_DATE THEN 'Active'
                        ELSE 'Ended'
@@ -156,6 +157,9 @@ export default crudRouter({
     if (!existing) throw new HttpError(404, 'Assignment not found');
     if (body.employee_id !== undefined && Number(body.employee_id) !== existing.employee_id) {
       throw new HttpError(400, 'employee_id cannot be changed after an assignment is created');
+    }
+    if (body.location_id !== undefined && Number(body.location_id) !== existing.location_id) {
+      throw new HttpError(400, 'A posting cannot be moved to another site. End it and create a new posting.');
     }
 
     const merged = parseInput(schema, { ...existing, ...body });
