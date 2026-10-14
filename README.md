@@ -158,6 +158,17 @@ A physical device can't reach `localhost` — use your machine's LAN IP in `.env
 
 ## Deploying the backend (Railway)
 
+### Isolated test deployment
+
+The `test/duty-qr-expo57` branch deploys the API to a separate `shiv-app-test`
+Railway project, with its own PostgreSQL database and upload volume. The test
+API is at `https://shiv-app-test-api-production.up.railway.app/api`. No APK is
+needed for a local Expo test: from `mobile/`, copy `.env.test.example` to `.env`,
+run `npm install`, then run `npx expo start` and open the app on a compatible
+device or simulator. The production EAS profiles still use the production API.
+
+### Production deployment
+
 The server never changes schema at HTTP startup. It verifies migration history and
 fails fast when the release step was skipped. Run `npm run db:setup` once when the
 database is first created; it applies migrations and creates the configured first

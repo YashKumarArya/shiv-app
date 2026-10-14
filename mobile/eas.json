@@ -4,16 +4,6 @@
     "appVersionSource": "local"
   },
   "build": {
-    "test": {
-      "distribution": "internal",
-      "node": "20.19.4",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://shiv-app-test-api-production.up.railway.app/api"
-      }
-    },
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
